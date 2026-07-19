@@ -1,0 +1,513 @@
+// ============================================================
+// ТУРИСТ — Prisma schema (MVP)
+// PostgreSQL + PostGIS. Геополя описаны как Unsupported("geography(Point,4326)")
+// т.к. Prisma пока не имеет нативного типа geography — доступ через raw SQL
+// в местах, где нужны геопространственные операторы (ST_DWithin и т.п.)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  player
+  verified_player
+  trusted_contributor
+  club_leader
+  moderator
+  content_manager
+  support_agent
+  analyst
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  banned
+  deleted
+}
+
+enum Archetype {
+  male
+  female
+}
+
+enum PoiVisibility {
+  public
+  secret
+  hidden_map
+}
+
+enum PoiStatus {
+  active
+  archived
+}
+
+enum MediaType {
+  photo
+  video
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ProofType {
+  photo
+  selfie
+  qr
+  none
+}
+
+enum AttemptStatus {
+  pending
+  verified
+  rejected
+  flagged_for_review
+}
+
+enum TxType {
+  earn
+  spend
+}
+
+enum Currency {
+  coins
+  crystals
+}
+
+enum SubmissionStatus {
+  pending
+  official
+  hidden_map
+  removed
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  nickname            String   @unique
+  nicknameLower       String   @unique // регистронезависимая уникальность
+  passwordHash        String
+  email               String?  @unique
+  telegramId          BigInt?  @unique
+  role                UserRole @default(player)
+  status               UserStatus @default(active)
+  recoveryPhraseHash  String?
+  privacySettings     Json     @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastLoginAt         DateTime?
+
+  character           CharacterProfile?
+  wallet              Wallet?
+  progress            UserProgress?
+  visitAttempts       VisitAttempt[]
+  visits              Visit[]
+  poiSubmissions      PoiSubmission[]
+  votes               Vote[]
+  reports             Report[]
+  inventoryItems      InventoryItem[]
+  userAchievements    UserAchievement[]
+  userQuestProgress   UserQuestProgress[]
+  notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
+  refreshTokens       RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  revoked   Boolean  @default(false)
+  replacedBy String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model CharacterProfile {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  archetype     Archetype @default(male)
+  equippedItems Json      @default("{}") // { "top": itemId, "shoes": itemId, ... }
+  modelConfig   Json      @default("{}")
+  updatedAt     DateTime  @updatedAt
+
+  @@map("character_profiles")
+}
+
+model PoiCategory {
+  id        String @id @default(uuid())
+  code      String @unique // lake, mountain, historic, rare, secret, cave, waterfall, museum, monument, village, abandoned
+  title     String
+  colorHex  String
+  iconAsset String?
+
+  poi Poi[]
+
+  @@map("poi_category")
+}
+
+model Poi {
+  id                  String        @id @default(uuid())
+  title               String
+  categoryId          String
+  category            PoiCategory   @relation(fields: [categoryId], references: [id])
+  lat                 Float
+  lng                 Float
+  regionCode          String        @default("RU-CHE")
+  descriptionHistory  String?
+  interestingFacts    Json          @default("[]")
+  bestSeason          String[]      @default([])
+  visibility          PoiVisibility @default(public)
+  difficulty          String        @default("easy")
+  status              PoiStatus     @default(active)
+  visitCount          Int           @default(0)
+  baseXp              Int           @default(200)
+  baseCoins           Int           @default(1000)
+  requiresProof       Boolean       @default(false)
+  createdBy           String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  media           PoiMedia[]
+  visitAttempts   VisitAttempt[]
+  visits          Visit[]
+  routeStops      RouteStop[]
+  collectionItems CollectionItem[]
+
+  @@index([regionCode])
+  @@map("poi")
+}
+
+model PoiMedia {
+  id                String            @id @default(uuid())
+  poiId             String
+  poi               Poi               @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  url               String
+  type              MediaType         @default(photo)
+  uploadedBy        String?
+  moderationStatus  ModerationStatus  @default(pending)
+  createdAt         DateTime          @default(now())
+
+  @@map("poi_media")
+}
+
+model VisitAttempt {
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poiId             String
+  poi               Poi           @relation(fields: [poiId], references: [id])
+  reportedLat       Float
+  reportedLng       Float
+  accuracyMeters    Float?
+  distanceMeters    Float?
+  dwellSeconds      Int           @default(0)
+  lastHeartbeatAt   DateTime?
+  proofType         ProofType     @default(none)
+  proofAssetUrl     String?
+  anticheatScore    Float         @default(0)
+  status            AttemptStatus @default(pending)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  visit Visit?
+
+  @@index([userId])
+  @@index([poiId])
+  @@map("visit_attempts")
+}
+
+model Visit {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poiId           String
+  poi             Poi          @relation(fields: [poiId], references: [id])
+  visitAttemptId  String       @unique
+  visitAttempt    VisitAttempt @relation(fields: [visitAttemptId], references: [id])
+  xpAwarded       Int
+  coinsAwarded    Int
+  visitedAt       DateTime     @default(now())
+
+  @@unique([userId, poiId]) // однократная награда за точку
+  @@map("visits")
+}
+
+model GeoLog {
+  id                BigInt   @id @default(autoincrement())
+  userId            String
+  lat               Float
+  lng               Float
+  accuracyMeters    Float?
+  speedKmh          Float?
+  recordedAt        DateTime @default(now())
+  deviceFingerprint String?
+
+  @@index([userId, recordedAt])
+  @@map("geo_logs")
+}
+
+model UserProgress {
+  id        String @id @default(uuid())
+  userId    String @unique
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp        Int    @default(0)
+  rankCode  String @default("novice")
+  updatedAt DateTime @updatedAt
+
+  @@map("user_progress")
+}
+
+model Wallet {
+  id             String @id @default(uuid())
+  userId         String @unique
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coinsBalance   Int    @default(0)
+  crystalsBalance Int   @default(0)
+
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type      TxType
+  source    String   // visit, quest, shop, daily_bonus, admin_adjustment...
+  amount    Int
+  currency  Currency
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model ShopItem {
+  id            String  @id @default(uuid())
+  name          String
+  category      String  // clothing, shoes, headwear, backpack, transport, pet, emote, frame
+  priceCoins    Int?
+  priceCrystals Int?
+  rarity        String  @default("common")
+  seasonId      String?
+  assetUrl      String?
+  active        Boolean @default(true)
+
+  inventoryItems InventoryItem[]
+
+  @@map("shop_items")
+}
+
+model InventoryItem {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopItemId String
+  shopItem   ShopItem @relation(fields: [shopItemId], references: [id])
+  acquiredAt DateTime @default(now())
+  equipped   Boolean  @default(false)
+
+  @@map("inventory_items")
+}
+
+model Achievement {
+  id          String @id @default(uuid())
+  code        String @unique
+  title       String
+  description String
+  category    String
+  tiers       Json   @default("[]")
+  reward      Json   @default("{}")
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  currentTier   Int         @default(0)
+  progress      Int         @default(0)
+  unlockedAt    DateTime?
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Collection {
+  id          String @id @default(uuid())
+  title       String
+  description String?
+  rewardItemId String?
+
+  items CollectionItem[]
+
+  @@map("collections")
+}
+
+model CollectionItem {
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  poiId        String
+  poi          Poi        @relation(fields: [poiId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, poiId])
+  @@map("collection_items")
+}
+
+model Quest {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  title      String
+  type       String   // daily, weekly, seasonal
+  condition  Json
+  reward     Json
+  activeFrom DateTime
+  activeTo   DateTime
+
+  userProgress UserQuestProgress[]
+
+  @@map("quests")
+}
+
+model UserQuestProgress {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questId     String
+  quest       Quest     @relation(fields: [questId], references: [id])
+  progress    Int       @default(0)
+  completedAt DateTime?
+
+  @@unique([userId, questId])
+  @@map("user_quest_progress")
+}
+
+model Route {
+  id                   String   @id @default(uuid())
+  title                String
+  description          String?
+  createdBy            String?
+  estimatedDistanceKm  Float?
+  estimatedDurationMin Int?
+
+  stops RouteStop[]
+
+  @@map("routes")
+}
+
+model RouteStop {
+  routeId    String
+  route      Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  poiId      String
+  poi        Poi   @relation(fields: [poiId], references: [id])
+  orderIndex Int
+
+  @@id([routeId, poiId])
+  @@map("route_stops")
+}
+
+model PoiSubmission {
+  id          String            @id @default(uuid())
+  submittedBy String
+  user        User              @relation(fields: [submittedBy], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  lat         Float
+  lng         Float
+  categoryId  String
+  media       Json              @default("[]")
+  status      SubmissionStatus  @default(pending)
+  netVotes    Int               @default(0)
+  createdAt   DateTime          @default(now())
+
+  votes   Vote[]
+  reports Report[]
+
+  @@map("poi_submissions")
+}
+
+model Vote {
+  id           String        @id @default(uuid())
+  submissionId String
+  submission   PoiSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  value        Int           // +1 / -1
+  createdAt    DateTime      @default(now())
+
+  @@unique([submissionId, userId])
+  @@map("votes")
+}
+
+model Report {
+  id           String   @id @default(uuid())
+  targetType   String   // poi, submission, media, chat_message, user
+  targetId     String
+  reportedBy   String
+  user         User     @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+  reason       String
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+
+  submission   PoiSubmission? @relation(fields: [submissionTargetId], references: [id])
+  submissionTargetId String?
+
+  @@map("reports")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  payload   Json      @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("notifications")
+}
+
+model PushSubscription {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint String
+  keys     Json
+
+  @@map("push_subscriptions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  diff       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-forest-dark text-ink font-body;
+}
+
+/* Карта должна занимать весь безопасный экран, без "прыжков" от адресной строки браузера */
+.map-viewport {
+  height: 100dvh;
+  width: 100vw;
+}
+
+/* Сигнатурный элемент: круглый "штамп паспорта" */
+.passport-stamp {
+  @apply relative flex items-center justify-center rounded-full border-2 border-amber text-amber;
+  transform: rotate(-6deg);
+}
+.passport-stamp::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1px dashed currentColor;
+  border-radius: 9999px;
+  opacity: 0.5;
+}
+
+.bg-topo {
+  background-color: theme('colors.parchment');
+  background-image: theme('backgroundImage.topo-lines');
+}
+
+/* Уважение к reduced-motion (SRS п.7.5, доступность) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Крупные тач-зоны для полевых условий (мин. 44x44px, SRS п.7.1) */
+button,
+a {
+  touch-action: manipulation;
+}

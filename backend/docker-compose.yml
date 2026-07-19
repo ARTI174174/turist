@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: turist
+      POSTGRES_PASSWORD: turist_dev_password
+      POSTGRES_DB: turist_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - turist_pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+volumes:
+  turist_pgdata:
