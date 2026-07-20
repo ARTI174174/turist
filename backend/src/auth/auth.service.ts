@@ -62,7 +62,7 @@ export class AuthService {
         nickname: dto.nickname,
         nicknameLower,
         passwordHash,
-        character: { create: { archetype: dto.archetype } },
+        character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '🙂' } },
         wallet: { create: { coinsBalance: 0, crystalsBalance: 0 } },
         progress: { create: { xp: 0, rankCode: 'novice' } },
       },

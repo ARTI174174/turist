@@ -33,6 +33,7 @@ export class VisitsService {
       dto.lng,
       poi.lat,
       poi.lng,
+      poi.geofenceRadiusM,
       dto.accuracyM,
     );
 
@@ -72,6 +73,7 @@ export class VisitsService {
       dto.lng,
       poi.lat,
       poi.lng,
+      poi.geofenceRadiusM,
       dto.accuracyM,
     );
 
@@ -142,7 +144,7 @@ export class VisitsService {
 
     const speedSignal = await this.anticheat.checkSpeedAnomaly(userId, attempt.reportedLat, attempt.reportedLng);
     const accountSignal = await this.anticheat.checkAccountHistory(userId);
-    const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > 30 ? 100 : 0;
+    const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > poi.geofenceRadiusM ? 100 : 0;
     const dwellSignal = attempt.dwellSeconds < REQUIRED_DWELL_SECONDS ? 100 : 0;
 
     const score = this.anticheat.computeScore({
@@ -195,12 +197,17 @@ export class VisitsService {
     const progress = await this.progression.addXp(userId, xpAwarded);
     await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
 
+    // Проверка вех «посетить N мест» — начисляется поверх обычной награды за точку
+    const totalVisits = await this.prisma.visit.count({ where: { userId } });
+    const newMilestones = await this.progression.checkVisitMilestones(userId, totalVisits);
+
     return {
       status: 'verified',
       visit,
       xpAwarded,
       coinsAwarded,
-      rank: progress.rank,
+      level: progress.level,
+      newMilestones,
     };
   }
 
@@ -210,6 +217,33 @@ export class VisitsService {
       include: { poi: { include: { category: true } } },
       orderBy: { visitedAt: 'desc' },
     });
+  }
+
+  /**
+   * Туристический паспорт: посещённые места, отсортированные по сложности
+   * (сначала сложные, потом легче), с личными заметками игрока.
+   */
+  async passport(userId: string) {
+    const visits = await this.prisma.visit.findMany({
+      where: { userId },
+      include: { poi: { include: { category: true } } },
+    });
+
+    const difficultyOrder: Record<string, number> = { hard: 0, medium: 1, easy: 2 };
+    return visits.sort((a, b) => {
+      const diff = (difficultyOrder[a.poi.difficulty] ?? 3) - (difficultyOrder[b.poi.difficulty] ?? 3);
+      if (diff !== 0) return diff;
+      return b.visitedAt.getTime() - a.visitedAt.getTime();
+    });
+  }
+
+  /** Личная заметка о посещённом месте, до 50 символов (валидация в DTO контроллера). */
+  async updateNote(userId: string, visitId: string, note: string) {
+    const visit = await this.prisma.visit.findUnique({ where: { id: visitId } });
+    if (!visit || visit.userId !== userId) {
+      throw new NotFoundException({ code: 'VISIT_NOT_FOUND', message: 'Посещение не найдено' });
+    }
+    return this.prisma.visit.update({ where: { id: visitId }, data: { note } });
   }
 
   private async getOwnedAttempt(userId: string, attemptId: string) {

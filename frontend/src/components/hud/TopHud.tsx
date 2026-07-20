@@ -2,23 +2,29 @@
 
 import { Bell, Gem } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { resolveLevel } from '@/lib/level';
 
 export function TopHud() {
   const user = useAuthStore((s) => s.user);
   if (!user) return null;
 
   const xp = user.progress?.xp ?? 0;
-  const rankTitle = rankTitleFromCode(user.progress?.rankCode);
+  const { level } = resolveLevel(xp);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 px-3"
+      // Сдвигаем HUD вниз на безопасную зону устройства (iPhone "чёлка"/остров) +
+      // ещё на высоту самих значков, чтобы они не оказывались под вырезом камеры.
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 52px)' }}
+    >
       <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-forest/95 px-3 py-2 shadow-lg backdrop-blur">
         <div className="passport-stamp h-9 w-9 shrink-0 text-xs font-display">
           {user.nickname.slice(0, 2).toUpperCase()}
         </div>
         <div className="leading-tight">
-          <p className="font-display text-sm text-parchment">{rankTitle}</p>
-          <p className="font-mono text-[11px] text-parchment/70">{xp} XP</p>
+          <p className="font-display text-sm text-parchment">Уровень {level}</p>
+          <p className="font-mono text-[11px] text-parchment/70">{xp} баллов</p>
         </div>
       </div>
 
@@ -40,16 +46,4 @@ export function TopHud() {
       </div>
     </div>
   );
-}
-
-function rankTitleFromCode(code?: string) {
-  const map: Record<string, string> = {
-    novice: 'Новичок',
-    traveler: 'Путешественник',
-    explorer: 'Исследователь',
-    pathfinder: 'Следопыт',
-    expert: 'Эксперт',
-    legend: 'Легенда Урала',
-  };
-  return map[code ?? 'novice'] ?? 'Новичок';
 }

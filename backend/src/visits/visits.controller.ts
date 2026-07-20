@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { VisitsService } from './visits.service';
-import { StartAttemptDto, HeartbeatDto, ProofDto } from './dto/attempt.dto';
+import { StartAttemptDto, HeartbeatDto, ProofDto, UpdateNoteDto } from './dto/attempt.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../common/decorators/current-user.decorator';
 
@@ -44,5 +44,21 @@ export class VisitsController {
   @Get('history')
   history(@CurrentUser() user: CurrentUserPayload) {
     return this.visitsService.history(user.userId);
+  }
+
+  // Туристический паспорт: посещённые места, отсортированы по сложности (сложные — первыми)
+  @Get('passport')
+  passport(@CurrentUser() user: CurrentUserPayload) {
+    return this.visitsService.passport(user.userId);
+  }
+
+  // Личная заметка о посещённом месте, до 50 символов
+  @Patch(':visitId/note')
+  updateNote(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('visitId') visitId: string,
+    @Body() dto: UpdateNoteDto,
+  ) {
+    return this.visitsService.updateNote(user.userId, visitId, dto.note);
   }
 }

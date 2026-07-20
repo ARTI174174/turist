@@ -7,6 +7,7 @@ import { PoiModule } from './poi/poi.module';
 import { VisitsModule } from './visits/visits.module';
 import { EconomyModule } from './economy/economy.module';
 import { ProgressionModule } from './progression/progression.module';
+import { UgcModule } from './ugc/ugc.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ProgressionModule } from './progression/progression.module';
     VisitsModule,
     EconomyModule,
     ProgressionModule,
+    UgcModule,
   ],
 })
 export class AppModule {}

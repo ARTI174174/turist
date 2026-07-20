@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { haversineDistanceMeters, speedKmh } from '../common/geo/geo.util';
 
-const GEOFENCE_RADIUS_M = 30;
 const REQUIRED_DWELL_SECONDS = 120;
 const MAX_ACCURACY_M = 50;
 
@@ -18,10 +17,21 @@ export interface AnticheatSignals {
 export class AnticheatService {
   constructor(private prisma: PrismaService) {}
 
-  /** Уровень 1: проверка геозоны и точности сигнала. */
-  checkGeofence(userLat: number, userLng: number, poiLat: number, poiLng: number, accuracyM?: number) {
+  /**
+   * Уровень 1: проверка геозоны и точности сигнала.
+   * Радиус берётся из точки (poi.geofenceRadiusM) — для крупных объектов
+   * (озёра, водохранилища) он может быть 1000-3000 м, чтобы хватало с берега.
+   */
+  checkGeofence(
+    userLat: number,
+    userLng: number,
+    poiLat: number,
+    poiLng: number,
+    radiusM: number,
+    accuracyM?: number,
+  ) {
     const distanceMeters = haversineDistanceMeters(userLat, userLng, poiLat, poiLng);
-    const withinGeofence = distanceMeters <= GEOFENCE_RADIUS_M;
+    const withinGeofence = distanceMeters <= radiusM;
     const lowAccuracy = (accuracyM ?? 0) > MAX_ACCURACY_M;
     return { distanceMeters, withinGeofence, lowAccuracy };
   }

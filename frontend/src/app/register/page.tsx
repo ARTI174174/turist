@@ -9,11 +9,18 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { AuthResponse } from '@/types';
 import { CharacterPreview } from '@/components/character/CharacterPreview';
 
+// Тот же набор, что и на бэкенде (backend/src/auth/dto/register.dto.ts) — держать в синхроне
+const AVATAR_EMOJIS = [
+  '🙂', '😎', '🥳', '🤠', '🧗', '🏕️', '⛰️', '🌲', '🦊', '🐺',
+  '🦉', '🐻', '🦌', '🐿️', '🍁', '🔥', '🧭', '🎒', '⛺', '🌄',
+];
+
 export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [archetype, setArchetype] = useState<'male' | 'female'>('male');
+  const [avatarEmoji, setAvatarEmoji] = useState(AVATAR_EMOJIS[0]);
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +31,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.post<AuthResponse>('/auth/register', { nickname, password, archetype });
+      const res = await api.post<AuthResponse>('/auth/register', {
+        nickname,
+        password,
+        archetype,
+        avatarEmoji,
+      });
       setSession(res.user, res.accessToken, res.refreshToken);
       router.push('/');
     } catch (e) {
@@ -67,6 +79,48 @@ export default function RegisterPage() {
         )}
 
         {step === 2 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-forest/10 text-4xl">
+                {avatarEmoji}
+              </div>
+              <p className="text-sm text-stone">Выбери аватар — он будет виден друзьям</p>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {AVATAR_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => setAvatarEmoji(emoji)}
+                  className={clsx(
+                    'flex aspect-square items-center justify-center rounded-xl border-2 text-xl',
+                    avatarEmoji === emoji ? 'border-forest bg-forest/10' : 'border-stone/20 bg-white/40',
+                  )}
+                  aria-label={`Выбрать аватар ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(1)}
+                className="rounded-full border border-stone/30 px-5 py-3 font-display text-sm text-ink/70"
+              >
+                Назад
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 rounded-full bg-forest py-3 font-display text-parchment"
+              >
+                Далее
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Ник" value={nickname} onChange={setNickname} autoComplete="username" hint="3–20 символов, латиница/цифры" />
             <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Минимум 8 символов" />
@@ -76,7 +130,7 @@ export default function RegisterPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
                 className="rounded-full border border-stone/30 px-5 py-3 font-display text-sm text-ink/70"
               >
                 Назад

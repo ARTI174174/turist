@@ -22,20 +22,16 @@ export interface Poi {
   baseXp: number;
   baseCoins: number;
   requiresProof: boolean;
+  geofenceRadiusM: number;
   distanceMeters?: number;
-}
-
-export interface Rank {
-  code: string;
-  title: string;
-  minXp: number;
 }
 
 export interface UserProgress {
   xp: number;
-  rank: Rank;
-  nextRank: Rank | null;
-  xpToNextRank: number | null;
+  level: number;
+  xpForCurrentLevel: number;
+  xpForNextLevel: number | null;
+  xpToNextLevel: number | null;
   hasSecretAccess: boolean;
 }
 
@@ -48,6 +44,7 @@ export interface Wallet {
 export interface CharacterProfile {
   id: string;
   archetype: 'male' | 'female';
+  avatarEmoji: string;
   equippedItems: Record<string, string>;
 }
 
@@ -80,6 +77,7 @@ export interface VisitCompleteResult {
   visit?: unknown;
   xpAwarded?: number;
   coinsAwarded?: number;
-  rank?: Rank;
+  level?: number;
+  newMilestones?: { count: number; reward: number }[];
   message?: string;
 }

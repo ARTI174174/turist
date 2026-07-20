@@ -28,7 +28,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
   const distanceMeters = position
     ? haversine(position.lat, position.lng, poi.lat, poi.lng)
     : null;
-  const withinGeofence = distanceMeters !== null && distanceMeters <= 30;
+  const withinGeofence = distanceMeters !== null && distanceMeters <= poi.geofenceRadiusM;
 
   async function handleStartExplore() {
     if (!position) return;
@@ -85,7 +85,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
         setFlow('success');
         if (res.xpAwarded && user) {
           updateUser({
-            progress: { xp: user.progress.xp + res.xpAwarded, rankCode: res.rank?.code ?? user.progress.rankCode },
+            progress: { xp: user.progress.xp + res.xpAwarded, rankCode: user.progress.rankCode },
             wallet: { ...user.wallet, coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0) },
           });
         }
@@ -149,6 +149,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
           dwellSeconds={dwellSeconds}
           reward={reward}
           errorMsg={errorMsg}
+          geofenceRadiusM={poi.geofenceRadiusM}
           onStart={handleStartExplore}
           onComplete={handleComplete}
         />
@@ -164,6 +165,7 @@ function ExploreControls({
   dwellSeconds,
   reward,
   errorMsg,
+  geofenceRadiusM,
   onStart,
   onComplete,
 }: {
@@ -173,6 +175,7 @@ function ExploreControls({
   dwellSeconds: number;
   reward: VisitCompleteResult | null;
   errorMsg: string | null;
+  geofenceRadiusM: number;
   onStart: () => void;
   onComplete: () => void;
 }) {
@@ -182,8 +185,17 @@ function ExploreControls({
         <Sparkles className="text-amber" size={28} />
         <p className="font-display text-lg text-forest">Точка открыта!</p>
         <p className="font-mono text-sm text-ink/70">
-          +{reward.xpAwarded} XP · +{reward.coinsAwarded} монет
+          +{reward.xpAwarded} баллов · +{reward.coinsAwarded} монет
         </p>
+        {reward.newMilestones && reward.newMilestones.length > 0 && (
+          <div className="mt-1 space-y-1">
+            {reward.newMilestones.map((m) => (
+              <p key={m.count} className="font-mono text-xs text-amber-dark">
+                🏅 Веха «{m.count} мест» — ещё +{m.reward} баллов
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -214,7 +226,7 @@ function ExploreControls({
         disabled={!withinGeofence}
         className="w-full rounded-full bg-forest py-3 font-display text-parchment disabled:opacity-40"
       >
-        {withinGeofence ? 'Исследовать' : 'Подойдите ближе (< 30 м)'}
+        {withinGeofence ? 'Исследовать' : `Подойдите ближе (< ${geofenceRadiusM} м)`}
       </button>
     );
   }

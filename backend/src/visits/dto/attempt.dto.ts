@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class StartAttemptDto {
   @IsString()
@@ -33,4 +33,10 @@ export class ProofDto {
 
   @IsString()
   assetUrl: string; // в MVP — URL уже загруженного в S3 файла; клиент грузит файл отдельным запросом на pre-signed URL
+}
+
+export class UpdateNoteDto {
+  @IsString()
+  @MaxLength(50, { message: 'Заметка не может быть длиннее 50 символов' })
+  note: string;
 }

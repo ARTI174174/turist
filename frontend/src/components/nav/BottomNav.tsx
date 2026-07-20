@@ -1,11 +1,12 @@
 'use client';
 
-import { Map, ListChecks, ShoppingBag, BookUser, Users } from 'lucide-react';
+import { Flame, Map, ListChecks, ShoppingBag, BookUser, Users } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 
 const TABS = [
-  { href: '/', label: 'Карта', icon: Map },
+  { href: '/', label: 'Лагерь', icon: Flame },
+  { href: '/map', label: 'Карта', icon: Map },
   { href: '/quests', label: 'Задания', icon: ListChecks },
   { href: '/shop', label: 'Магазин', icon: ShoppingBag },
   { href: '/passport', label: 'Паспорт', icon: BookUser },

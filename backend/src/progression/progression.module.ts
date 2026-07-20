@@ -16,9 +16,22 @@ class ProgressionController {
   }
 }
 
+@ApiTags('quests')
+@Controller('quests')
+@UseGuards(JwtAuthGuard)
+class QuestsController {
+  constructor(private progressionService: ProgressionService) {}
+
+  // Вехи «Посетить N мест» (SRS: экран «Задания»)
+  @Get('milestones')
+  getMilestones(@CurrentUser() user: CurrentUserPayload) {
+    return this.progressionService.getVisitMilestonesStatus(user.userId);
+  }
+}
+
 @Module({
   providers: [ProgressionService],
-  controllers: [ProgressionController],
+  controllers: [ProgressionController, QuestsController],
   exports: [ProgressionService],
 })
 export class ProgressionModule {}

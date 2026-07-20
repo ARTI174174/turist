@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Poi } from '@/types';
@@ -12,19 +12,63 @@ interface MapViewProps {
   onSelectPoi: (poi: Poi) => void;
 }
 
+export interface MapViewHandle {
+  /** Центрирует карту на текущей позиции игрока (кнопка "Я" на карте). */
+  recenterOnUser: () => void;
+}
+
 // Челябинская область — точка отсчёта карты по умолчанию (пока GPS не определён)
 const DEFAULT_CENTER: [number, number] = [61.4, 55.15];
 const DEFAULT_ZOOM = 8;
 
-// Публичный демо-стиль для разработки. В проде — собственный style.json,
-// сгенерированный из OSM-экстракта региона через Tileserver-GL/Martin (SRS п.9.1, 14.3).
-const MAP_STYLE = 'https://demotiles.maplibre.org/style.json';
+// Растровые тайлы CARTO Voyager (на базе данных OpenStreetMap) — реальные дороги,
+// здания, подписи городов. Бесплатно, без ограничений по количеству запросов
+// для некоммерческого использования. В проде — собственный тайл-сервер (SRS п.9.1, 14.3).
+const MAP_STYLE: any = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      maxzoom: 20,
+      attribution: '© OpenStreetMap contributors © CARTO',
+    },
+  },
+  layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm' }],
+};
 
-export function MapView({ pois, position, onSelectPoi }: MapViewProps) {
+// Жёсткие границы карты — примерно очерчивают Челябинскую область с запасом,
+// чтобы карту нельзя было утащить/отдалить до вида всей страны/мира.
+const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
+  [56.0, 50.5],
+  [64.0, 56.8],
+];
+
+export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
+  { pois, position, onSelectPoi },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const userMarkerRef = useRef<Marker | null>(null);
+  const userMarkerElRef = useRef<HTMLDivElement | null>(null);
+  const hasCenteredOnceRef = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    recenterOnUser: () => {
+      const map = mapRef.current;
+      if (map && position) {
+        map.flyTo({ center: [position.lng, position.lat], zoom: Math.max(map.getZoom(), 13) });
+      }
+    },
+  }));
 
   // Инициализация карты один раз
   useEffect(() => {
@@ -35,6 +79,8 @@ export function MapView({ pois, position, onSelectPoi }: MapViewProps) {
       style: MAP_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
+      minZoom: 7,
+      maxBounds: CHELYABINSK_BOUNDS,
       attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
@@ -74,27 +120,50 @@ export function MapView({ pois, position, onSelectPoi }: MapViewProps) {
     }
   }, [pois, onSelectPoi]);
 
-  // Позиция игрока — синяя точка + плавный follow при первом фиксе
+  // Позиция игрока — компас вместо синей точки, разворачивается по направлению
+  // взгляда (Device Orientation), первый фикс сразу центрирует карту.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !position) return;
 
     if (!userMarkerRef.current) {
       const el = document.createElement('div');
-      el.style.width = '18px';
-      el.style.height = '18px';
-      el.style.borderRadius = '9999px';
-      el.style.background = '#3B82F6';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 0 0 4px rgba(59,130,246,0.25)';
-      userMarkerRef.current = new maplibregl.Marker({ element: el })
+      el.style.width = '40px';
+      el.style.height = '40px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
+      el.innerHTML = `
+        <svg width="40" height="40" viewBox="0 0 40 40" style="transition: transform 0.2s ease;">
+          <circle cx="20" cy="20" r="17" fill="#1F4235" stroke="#EFE8D8" stroke-width="2.5" />
+          <circle cx="20" cy="20" r="17" fill="none" stroke="#C68A3A" stroke-width="1" stroke-dasharray="2 3" />
+          <path d="M20 8 L25 22 L20 19 L15 22 Z" fill="#C68A3A" />
+          <text x="20" y="7" text-anchor="middle" font-size="5" fill="#EFE8D8" font-family="sans-serif">N</text>
+        </svg>
+      `;
+      userMarkerElRef.current = el;
+
+      userMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
         .setLngLat([position.lng, position.lat])
         .addTo(map);
-      map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
     } else {
       userMarkerRef.current.setLngLat([position.lng, position.lat]);
+    }
+
+    // Вращаем стрелку компаса по направлению взгляда устройства, если доступно
+    if (userMarkerElRef.current && position.heading !== null) {
+      const svg = userMarkerElRef.current.querySelector('svg') as SVGElement | null;
+      if (svg) svg.style.transform = `rotate(${position.heading}deg)`;
+    }
+
+    // Центрируем карту на игроке только один раз, при первом определении позиции —
+    // дальше пользователь сам управляет картой (не "прыгает" под ногами при каждом обновлении GPS)
+    if (!hasCenteredOnceRef.current) {
+      hasCenteredOnceRef.current = true;
+      map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
     }
   }, [position]);
 
   return <div ref={containerRef} className="map-viewport" />;
-}
+});

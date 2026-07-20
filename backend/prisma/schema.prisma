@@ -143,6 +143,7 @@ model CharacterProfile {
   userId        String    @unique
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   archetype     Archetype @default(male)
+  avatarEmoji   String    @default("🙂") // выбирается при регистрации из готового набора (20 штук)
   equippedItems Json      @default("{}") // { "top": itemId, "shoes": itemId, ... }
   modelConfig   Json      @default("{}")
   updatedAt     DateTime  @updatedAt
@@ -180,6 +181,7 @@ model Poi {
   baseXp              Int           @default(200)
   baseCoins           Int           @default(1000)
   requiresProof       Boolean       @default(false)
+  geofenceRadiusM     Int           @default(30) // радиус зоны открытия в метрах — настраивается на точку (озёра/крупные объекты — 1000-3000 м)
   createdBy           String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -243,6 +245,7 @@ model Visit {
   visitAttempt    VisitAttempt @relation(fields: [visitAttemptId], references: [id])
   xpAwarded       Int
   coinsAwarded    Int
+  note            String?      // личная заметка игрока об этом месте, до 50 символов (валидация на уровне API)
   visitedAt       DateTime     @default(now())
 
   @@unique([userId, poiId]) // однократная награда за точку
@@ -264,12 +267,13 @@ model GeoLog {
 }
 
 model UserProgress {
-  id        String @id @default(uuid())
-  userId    String @unique
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  xp        Int    @default(0)
-  rankCode  String @default("novice")
-  updatedAt DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp                     Int      @default(0)
+  rankCode               String   @default("novice") // сохранено для обратной совместимости, актуальный уровень — вычисляемый (см. ProgressionService)
+  visitMilestonesClaimed Int[]    @default([]) // какие вехи по количеству посещений уже награждены (1,5,10,50,100,200,500)
+  updatedAt              DateTime @updatedAt
 
   @@map("user_progress")
 }

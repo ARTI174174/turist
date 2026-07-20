@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/store/useAuthStore';
+import { AuthResponse } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
@@ -12,7 +13,43 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Пытается обновить access-токен по refresh-токену.
+ * Возвращает true при успехе. При неудаче — очищает сессию
+ * (чтобы UI не оставался в "молчаливо сломанном" состоянии, SRS п.13.1).
+ * Несколько параллельных 401 схлопываются в один запрос обновления.
+ */
+function tryRefreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const { refreshToken } = useAuthStore.getState();
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+
+      const data: AuthResponse = await res.json();
+      useAuthStore.getState().setSession(data.user, data.accessToken, data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+async function request<T>(path: string, options: RequestInit = {}, allowRetry = true): Promise<T> {
   const { accessToken } = useAuthStore.getState();
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -23,6 +60,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...(options.headers ?? {}),
     },
   });
+
+  // Access-токен истёк (живёт 15 мин) — пробуем один раз тихо обновить его
+  // и повторить запрос, вместо того чтобы UI молча оставался без данных.
+  if (res.status === 401 && allowRetry && !path.startsWith('/auth/')) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      return request<T>(path, options, false);
+    }
+    // Обновить не удалось — сессия действительно недействительна,
+    // возвращаем пользователя на экран входа.
+    useAuthStore.getState().clearSession();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+    throw new ApiError('SESSION_EXPIRED', 'Сессия истекла, требуется повторный вход');
+  }
 
   if (!res.ok) {
     let body: any = null;
