@@ -1,11 +1,24 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Bell, Gem } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { resolveLevel } from '@/lib/level';
+import { api } from '@/lib/api';
 
 export function TopHud() {
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
+
+  const { data } = useQuery<{ count: number }>({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => api.get<{ count: number }>('/notifications/unread-count'),
+    enabled: !!user,
+    refetchInterval: 20_000,
+  });
+  const unreadCount = data?.count ?? 0;
+
   if (!user) return null;
 
   const xp = user.progress?.xp ?? 0;
@@ -38,10 +51,16 @@ export function TopHud() {
           <span className="font-mono text-sm text-parchment">{user.wallet?.crystalsBalance ?? 0}</span>
         </div>
         <button
+          onClick={() => router.push('/social')}
           aria-label="Уведомления"
-          className="rounded-full bg-forest/95 p-2.5 text-parchment shadow-lg backdrop-blur"
+          className="relative rounded-full bg-forest/95 p-2.5 text-parchment shadow-lg backdrop-blur"
         >
           <Bell size={18} />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 font-mono text-[9px] text-parchment">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

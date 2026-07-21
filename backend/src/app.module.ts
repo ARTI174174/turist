@@ -8,6 +8,8 @@ import { VisitsModule } from './visits/visits.module';
 import { EconomyModule } from './economy/economy.module';
 import { ProgressionModule } from './progression/progression.module';
 import { UgcModule } from './ugc/ugc.module';
+import { SocialModule } from './social/social.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { UgcModule } from './ugc/ugc.module';
     EconomyModule,
     ProgressionModule,
     UgcModule,
+    SocialModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

@@ -120,6 +120,10 @@ model User {
   notifications       Notification[]
   pushSubscriptions   PushSubscription[]
   refreshTokens       RefreshToken[]
+  friendshipsSent     Friendship[]        @relation("FriendshipRequester")
+  friendshipsReceived Friendship[]        @relation("FriendshipAddressee")
+  chatParticipations  ChatParticipant[]
+  messagesSent        Message[]
 
   @@map("users")
 }
@@ -514,4 +518,62 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+// ============================================================
+// Друзья и чат
+// ============================================================
+
+enum FriendshipStatus {
+  pending
+  accepted
+  declined
+}
+
+model Friendship {
+  id           String           @id @default(uuid())
+  requesterId  String
+  requester    User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId  String
+  addressee    User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status       FriendshipStatus @default(pending)
+  createdAt    DateTime         @default(now())
+  respondedAt  DateTime?
+
+  @@unique([requesterId, addresseeId])
+  @@map("friendships")
+}
+
+model ChatRoom {
+  id           String            @id @default(uuid())
+  createdAt    DateTime          @default(now())
+  participants ChatParticipant[]
+  messages     Message[]
+
+  @@map("chat_rooms")
+}
+
+model ChatParticipant {
+  id         String    @id @default(uuid())
+  chatRoomId String
+  chatRoom   ChatRoom  @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?
+
+  @@unique([chatRoomId, userId])
+  @@map("chat_participants")
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content    String   // текст + эмодзи, до 500 символов (валидация на уровне API)
+  createdAt  DateTime @default(now())
+
+  @@index([chatRoomId, createdAt])
+  @@map("messages")
 }
