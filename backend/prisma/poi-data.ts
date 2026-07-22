@@ -598,7 +598,7 @@ export const POI_CATALOG: PoiSeedData[] = [
   difficulty: 'easy',
   baseXp: 100,
   requiresProof: false,
-}
+  },
   {
     title: 'Гора Круглица',
     categoryCode: 'mountain',
