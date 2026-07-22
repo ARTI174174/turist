@@ -91,7 +91,7 @@ export const POI_CATALOG: PoiSeedData[] = [
     ],
     bestSeason: ['summer', 'autumn'],
     difficulty: 'hard',
-    baseXp: 5000,
+    baseXp: 500,
     requiresProof: true,
   },
   {
