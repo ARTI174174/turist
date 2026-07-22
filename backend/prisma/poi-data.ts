@@ -100,7 +100,7 @@ export const POI_CATALOG: PoiSeedData[] = [
   categoryCode: 'historic',
   lat: 53.42,
   lng: 59.05,
-  geofenceRadiusM: 4000,
+  geofenceRadiusM: 13000,
   descriptionHistory:
     'Магнитогорск вырос из небольшого посёлка при Магнитной горе, богатой железной рудой. В 1929 году началось строительство гиганта советской индустрии — Магнитогорского металлургического комбината (ММК), что превратило его в один из ключевых городов страны [citation:2].',
   interestingFacts: [
