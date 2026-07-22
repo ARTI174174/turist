@@ -77,7 +77,7 @@ export interface PoiSeedData {
 
 export const POI_CATALOG: PoiSeedData[] = [
     {
-    title: 'ЖК Притяжение',
+    title: 'ЖК Ппритяжение',
     categoryCode: 'rare',
     lat: 55.095321, 
     lng: 61.246145,
@@ -91,7 +91,7 @@ export const POI_CATALOG: PoiSeedData[] = [
     ],
     bestSeason: ['summer', 'autumn'],
     difficulty: 'hard',
-    baseXp: 500,
+    baseXp: 5000,
     requiresProof: true,
   },
   {
