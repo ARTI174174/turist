@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { POI_CATALOG } from './poi-data';
+import { CRYSTAL_CATALOG } from './crystal-data';
 
 const prisma = new PrismaClient();
 
@@ -54,7 +55,7 @@ async function main() {
       bestSeason: poi.bestSeason,
       difficulty: poi.difficulty,
       baseXp: poi.baseXp,
-      baseCoins: poi.baseCoins,
+      baseCoins: poi.baseXp, // монеты за визит всегда равны баллам опыта (правило игры)
       requiresProof: poi.requiresProof,
     };
 
@@ -67,6 +68,36 @@ async function main() {
     } else {
       await prisma.poi.create({ data: { title: poi.title, ...data } });
       created++;
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Синхронизация: если точку удалили из poi-data.ts — она должна
+  // пропасть и из базы/с карты, а не просто перестать обновляться.
+  // ----------------------------------------------------------
+  const catalogTitles = POI_CATALOG.map((p) => p.title);
+  const staleePois = await prisma.poi.findMany({
+    where: { title: { notIn: catalogTitles }, createdBy: null },
+    select: { id: true },
+  });
+  const staleIds = staleePois.map((p) => p.id);
+
+  let deleted = 0;
+  if (staleIds.length > 0) {
+    // Сначала связанные записи без каскадного удаления в схеме
+    await prisma.visit.deleteMany({ where: { poiId: { in: staleIds } } });
+    await prisma.visitAttempt.deleteMany({ where: { poiId: { in: staleIds } } });
+    await prisma.routeStop.deleteMany({ where: { poiId: { in: staleIds } } });
+    const result = await prisma.poi.deleteMany({ where: { id: { in: staleIds } } });
+    deleted = result.count;
+  }
+
+  let crystalsCreated = 0;
+  for (const c of CRYSTAL_CATALOG) {
+    const exists = await prisma.crystal.findFirst({ where: { lat: c.lat, lng: c.lng } });
+    if (!exists) {
+      await prisma.crystal.create({ data: c });
+      crystalsCreated++;
     }
   }
 
@@ -86,7 +117,7 @@ async function main() {
 
   // eslint-disable-next-line no-console
   console.log(
-    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, предметы магазина загружены.`,
+    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, ${deleted} устаревших удалено, ${crystalsCreated} новых кристаллов, предметы магазина загружены.`,
   );
 }
 

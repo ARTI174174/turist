@@ -3,13 +3,15 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Poi } from '@/types';
+import { Poi, Crystal } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
 
 interface MapViewProps {
   pois: Poi[];
+  crystals?: Crystal[];
   position: GeoPosition | null;
   onSelectPoi: (poi: Poi) => void;
+  onSelectCrystal?: (crystal: Crystal) => void;
 }
 
 export interface MapViewHandle {
@@ -51,12 +53,13 @@ const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { pois, position, onSelectPoi },
+  { pois, crystals = [], position, onSelectPoi, onSelectCrystal },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const crystalMarkersRef = useRef<Marker[]>([]);
   const userMarkerRef = useRef<Marker | null>(null);
   const userMarkerElRef = useRef<HTMLDivElement | null>(null);
   const hasCenteredOnceRef = useRef(false);
@@ -119,6 +122,36 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markersRef.current.push(marker);
     }
   }, [pois, onSelectPoi]);
+
+  // Маркеры кристаллов — маленькие бриллианты, видны только в радиусе (сервер уже фильтрует)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    crystalMarkersRef.current.forEach((m) => m.remove());
+    crystalMarkersRef.current = [];
+
+    for (const crystal of crystals) {
+      const el = document.createElement('button');
+      el.setAttribute('aria-label', 'Кристалл');
+      el.style.width = '22px';
+      el.style.height = '22px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.fontSize = '16px';
+      el.style.cursor = 'pointer';
+      el.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))';
+      el.textContent = '💎';
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([crystal.lng, crystal.lat])
+        .addTo(map);
+
+      el.addEventListener('click', () => onSelectCrystal?.(crystal));
+      crystalMarkersRef.current.push(marker);
+    }
+  }, [crystals, onSelectCrystal]);
 
   // Позиция игрока — компас вместо синей точки, разворачивается по направлению
   // взгляда (Device Orientation), первый фикс сразу центрирует карту.

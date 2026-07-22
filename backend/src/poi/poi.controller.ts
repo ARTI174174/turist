@@ -18,7 +18,7 @@ export class PoiController {
   @UseGuards(JwtAuthGuard)
   async findInBbox(@Query() query: QueryPoiDto, @CurrentUser() user: CurrentUserPayload) {
     const progress = await this.prisma.userProgress.findUnique({ where: { userId: user.userId } });
-    return this.poiService.findInBbox(query, progress?.xp ?? 0);
+    return this.poiService.findInBbox(query, progress?.xp ?? 0, user.userId);
   }
 
   @Get('categories')
@@ -35,6 +35,7 @@ export class PoiController {
       query.lng!,
       query.radiusM ?? 1000,
       progress?.xp ?? 0,
+      user.userId,
     );
   }
 

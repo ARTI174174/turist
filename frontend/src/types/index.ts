@@ -1,3 +1,11 @@
+export interface Crystal {
+  id: string;
+  lat: number;
+  lng: number;
+  reward: number;
+  distanceMeters: number;
+}
+
 export interface PoiCategory {
   id: string;
   code: string;

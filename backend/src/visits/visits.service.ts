@@ -5,7 +5,7 @@ import { ProgressionService } from '../progression/progression.service';
 import { EconomyService } from '../economy/economy.service';
 import { StartAttemptDto, HeartbeatDto, ProofDto } from './dto/attempt.dto';
 
-const REQUIRED_DWELL_SECONDS = 120;
+const REQUIRED_DWELL_SECONDS = 20;
 
 @Injectable()
 export class VisitsService {
@@ -178,7 +178,9 @@ export class VisitsService {
 
     // resolution === 'verified' → начисляем награду идемпотентно
     const xpAwarded = poi.baseXp;
-    const coinsAwarded = poi.baseCoins;
+    // Монеты за посещение точки всегда равны количеству начисленных баллов опыта —
+    // опыт копится (используется для уровня), монеты тратятся (магазин).
+    const coinsAwarded = xpAwarded;
 
     const visit = await this.prisma.$transaction(async (tx) => {
       const created = await tx.visit.create({

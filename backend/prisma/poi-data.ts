@@ -25,8 +25,7 @@
 //     interestingFacts: ['Интересный факт 1', 'Интересный факт 2'],
 //     bestSeason: ['summer', 'autumn'], // из: summer, autumn, winter, spring
 //     difficulty: 'easy',       // easy | medium | hard
-//     baseXp: 300,              // награда опытом за открытие
-//     baseCoins: 1200,          // награда монетами за открытие
+//     baseXp: 300,              // награда баллами опыта; монеты за визит всегда равны этому же числу автоматически
 //     requiresProof: false,     // true — потребует фото/QR для подтверждения (для ценных/удалённых мест)
 //   },
 //
@@ -52,7 +51,6 @@
 //     вершина/гора — 500 · точка по пути на вершину — 50 · смотровая площадка — 200
 //   Красный уровень (предложено игроками, координаты требуют проверки):
 //     от 200 баллов — можно регулировать по значимости места
-//   (baseCoins — отдельная игровая валюта на покупки в магазине, не баллы опыта)
 //
 // ВАЖНО: координаты ниже проверены минимум по одному независимому
 // источнику (Wikipedia / официальный сайт объекта / специализированный
@@ -74,7 +72,6 @@ export interface PoiSeedData {
   bestSeason: string[];
   difficulty: 'easy' | 'medium' | 'hard';
   baseXp: number;
-  baseCoins: number;
   requiresProof: boolean;
 }
 
@@ -95,7 +92,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn'],
     difficulty: 'hard',
     baseXp: 500,
-    baseCoins: 2800,
     requiresProof: true,
   },
   {
@@ -114,7 +110,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn'],
     difficulty: 'hard',
     baseXp: 500,
-    baseCoins: 2600,
     requiresProof: true,
   },
   {
@@ -133,7 +128,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn', 'winter'],
     difficulty: 'medium',
     baseXp: 500,
-    baseCoins: 2000,
     requiresProof: false,
   },
   {
@@ -152,7 +146,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer'],
     difficulty: 'easy',
     baseXp: 50,
-    baseCoins: 1400,
     requiresProof: false,
   },
   {
@@ -171,7 +164,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer'],
     difficulty: 'medium',
     baseXp: 200,
-    baseCoins: 2500,
     requiresProof: true,
   },
   {
@@ -190,7 +182,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn'],
     difficulty: 'easy',
     baseXp: 50,
-    baseCoins: 1600,
     requiresProof: false,
   },
   {
@@ -209,7 +200,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn'],
     difficulty: 'easy',
     baseXp: 200,
-    baseCoins: 3000,
     requiresProof: true,
   },
   {
@@ -228,7 +218,6 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['summer', 'autumn'],
     difficulty: 'medium',
     baseXp: 500,
-    baseCoins: 2200,
     requiresProof: true,
   },
 ];

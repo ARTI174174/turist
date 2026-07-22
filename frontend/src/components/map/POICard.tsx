@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, MapPin, Sparkles, Camera } from 'lucide-react';
 import { Poi, VisitAttemptStart, VisitCompleteResult } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
@@ -24,6 +25,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const updateUser = useAuthStore((s) => s.updateUser);
   const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
 
   const distanceMeters = position
     ? haversine(position.lat, position.lng, poi.lat, poi.lng)
@@ -68,7 +70,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
         /* сетевой сбой heartbeat не критичен — попробуем на следующем тике,
            при длительном отсутствии сети действие уйдёт в офлайн-очередь (см. lib/offline-queue) */
       }
-    }, 20_000);
+    }, 5_000);
 
     return () => {
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
@@ -89,6 +91,9 @@ export function POICard({ poi, position, onClose }: POICardProps) {
             wallet: { ...user.wallet, coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0) },
           });
         }
+        // Точка исчезает с карты сразу — сервер больше не отдаёт уже открытые этим игроком места
+        queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
+        queryClient.invalidateQueries({ queryKey: ['quests', 'milestones'] });
       } else {
         setFlow('review');
       }
@@ -145,7 +150,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
         <ExploreControls
           flow={flow}
           withinGeofence={withinGeofence}
-          requiredDwell={attempt?.requiredDwellSeconds ?? 120}
+          requiredDwell={attempt?.requiredDwellSeconds ?? 20}
           dwellSeconds={dwellSeconds}
           reward={reward}
           errorMsg={errorMsg}

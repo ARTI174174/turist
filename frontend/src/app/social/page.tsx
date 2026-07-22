@@ -143,7 +143,7 @@ function FriendsListView({
   return (
     <div
       className="h-full overflow-y-auto bg-topo px-4 pb-28"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
     >
       <h1 className="mb-4 font-display text-xl text-ink">Друзья</h1>
 
@@ -301,7 +301,7 @@ function ChatView({
   }
 
   return (
-    <div className="flex h-full flex-col bg-topo" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}>
+    <div className="flex h-full flex-col bg-topo" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}>
       <div className="flex items-center gap-3 border-b border-stone/20 bg-parchment/90 px-3 py-3">
         <button onClick={onBack} aria-label="Назад к списку друзей" className="text-ink/70">
           <ArrowLeft size={20} />

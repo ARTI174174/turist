@@ -68,7 +68,7 @@ export default function ShopPage() {
 
       <div
         className="h-full overflow-y-auto bg-topo px-4 pb-28"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
       >
         <h1 className="mb-1 font-display text-xl text-ink">Магазин</h1>
         <p className="mb-4 text-sm text-stone">Только косметика — никакого влияния на прогресс</p>

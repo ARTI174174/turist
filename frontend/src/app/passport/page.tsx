@@ -53,7 +53,7 @@ export default function PassportPage() {
 
       <div
         className="h-full overflow-y-auto bg-topo px-4 pb-28"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
       >
         <div className="mb-5 flex items-center gap-3">
           <div className="passport-stamp h-14 w-14 shrink-0 text-sm font-display">

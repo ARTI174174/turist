@@ -29,7 +29,7 @@ export function TopHud() {
       className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 px-3"
       // Сдвигаем HUD вниз на безопасную зону устройства (iPhone "чёлка"/остров) +
       // ещё на высоту самих значков, чтобы они не оказывались под вырезом камеры.
-      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 52px)' }}
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
     >
       <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-forest/95 px-3 py-2 shadow-lg backdrop-blur">
         <div className="passport-stamp h-9 w-9 shrink-0 text-xs font-display">

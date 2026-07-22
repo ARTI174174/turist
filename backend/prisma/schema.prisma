@@ -124,6 +124,7 @@ model User {
   friendshipsReceived Friendship[]        @relation("FriendshipAddressee")
   chatParticipations  ChatParticipant[]
   messagesSent        Message[]
+  crystalPickups      CrystalPickup[]
 
   @@map("users")
 }
@@ -576,4 +577,34 @@ model Message {
 
   @@index([chatRoomId, createdAt])
   @@map("messages")
+}
+
+// ============================================================
+// Бриллианты (кристаллы) — разбросанные по карте коллекционные точки,
+// в основном вдоль дорог/троп. Видны на карте только когда игрок
+// ближе 1 км, забрать можно вблизи (см. CrystalsService).
+// ============================================================
+
+model Crystal {
+  id         String          @id @default(uuid())
+  lat        Float
+  lng        Float
+  reward     Int             @default(5) // сколько кристаллов (донат-валюты) даёт подбор
+  regionCode String          @default("RU-CHE")
+  createdAt  DateTime        @default(now())
+  pickups    CrystalPickup[]
+
+  @@map("crystals")
+}
+
+model CrystalPickup {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crystalId String
+  crystal   Crystal  @relation(fields: [crystalId], references: [id], onDelete: Cascade)
+  pickedAt  DateTime @default(now())
+
+  @@unique([userId, crystalId])
+  @@map("crystal_pickups")
 }
