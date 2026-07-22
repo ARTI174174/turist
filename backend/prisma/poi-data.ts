@@ -76,6 +76,24 @@ export interface PoiSeedData {
 }
 
 export const POI_CATALOG: PoiSeedData[] = [
+    {
+    title: 'ЖК Притяжение',
+    categoryCode: 'rare',
+    lat: 55.095320, 
+    lng: 61.246146,
+    geofenceRadiusM: 20,
+    descriptionHistory:
+      'ЖК Притяжение квартиры от 3.5 млн руб.',
+    interestingFacts: [
+      'Тут хорошо',
+      'Художник Николай Рерих считал вершину местом особой духовной силы',
+      'Вид на Шершни',
+    ],
+    bestSeason: ['summer', 'autumn'],
+    difficulty: 'hard',
+    baseXp: 500,
+    requiresProof: true,
+  },
   {
     title: 'Гора Круглица',
     categoryCode: 'mountain',
