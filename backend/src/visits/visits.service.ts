@@ -135,12 +135,14 @@ export class VisitsService {
       });
     }
 
-    if (poi.requiresProof && attempt.proofType === 'none') {
-      throw new BadRequestException({
-        code: 'PROOF_REQUIRED',
-        message: 'Для этой точки требуется фото или QR-подтверждение',
-      });
-    }
+    // Фото/QR-подтверждение временно отключено (реализуем позже вместе с загрузкой фото
+    // на фронтенде) — сейчас для завершения посещения достаточно дойти и нажать «Исследовать».
+    // if (poi.requiresProof && attempt.proofType === 'none') {
+    //   throw new BadRequestException({
+    //     code: 'PROOF_REQUIRED',
+    //     message: 'Для этой точки требуется фото или QR-подтверждение',
+    //   });
+    // }
 
     const speedSignal = await this.anticheat.checkSpeedAnomaly(userId, attempt.reportedLat, attempt.reportedLng);
     const accountSignal = await this.anticheat.checkAccountHistory(userId);

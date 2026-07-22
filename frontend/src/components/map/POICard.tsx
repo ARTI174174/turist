@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { X, MapPin, Sparkles, Camera } from 'lucide-react';
+import { X, MapPin, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Poi, VisitAttemptStart, VisitCompleteResult } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
 import { api, ApiError } from '@/lib/api';
@@ -265,7 +265,7 @@ function ExploreControls({
         onClick={onComplete}
         className="flex w-full items-center justify-center gap-2 rounded-full bg-amber py-3 font-display text-ink"
       >
-        <Camera size={18} /> Подтвердить открытие
+        <CheckCircle2 size={18} /> Исследовать
       </button>
     );
   }
