@@ -76,6 +76,24 @@ export interface PoiSeedData {
 }
 
 export const POI_CATALOG: PoiSeedData[] = [
+      {
+    title: 'ЖК',
+    categoryCode: 'rare',
+    lat: 55.095321, 
+    lng: 61.246145,
+    geofenceRadiusM: 20,
+    descriptionHistory:
+      'ЖК Притяжение квартиры от 3.5 млнп руб.',
+    interestingFacts: [
+      'Тут хорошо',
+      'Художник Николай Рерих считал вершину местом особой духовной силы',
+      'Вид на Шершни',
+    ],
+    bestSeason: ['summer', 'autumn'],
+    difficulty: 'easy',
+    baseXp: 50,
+    requiresProof: true,
+  },
     {
     title: 'ЖК Ппритяжение',
     categoryCode: 'rare',
