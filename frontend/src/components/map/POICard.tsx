@@ -23,9 +23,17 @@ export function POICard({ poi, position, onClose }: POICardProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [reward, setReward] = useState<VisitCompleteResult | null>(null);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const positionRef = useRef(position);
   const updateUser = useAuthStore((s) => s.updateUser);
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+
+  // Держим актуальную позицию в ref, чтобы обновления GPS (которые приходят очень
+  // часто) не пересоздавали интервал heartbeat ниже — раньше именно из-за этого
+  // 5-секундный таймер почти никогда не успевал сработать и точка "зависала".
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
 
   const distanceMeters = position
     ? haversine(position.lat, position.lng, poi.lat, poi.lng)
@@ -55,11 +63,12 @@ export function POICard({ poi, position, onClose }: POICardProps) {
     if (flow !== 'dwelling' || !attempt) return;
 
     heartbeatTimer.current = setInterval(async () => {
-      if (!position) return;
+      const currentPosition = positionRef.current;
+      if (!currentPosition) return;
       try {
         const res = await api.post<{ dwellSeconds: number; withinGeofence: boolean; dwellComplete?: boolean }>(
           `/visits/${attempt.attemptId}/heartbeat`,
-          { lat: position.lat, lng: position.lng, accuracyM: position.accuracyM },
+          { lat: currentPosition.lat, lng: currentPosition.lng, accuracyM: currentPosition.accuracyM },
         );
         setDwellSeconds(res.dwellSeconds);
         if (res.dwellComplete) {
@@ -75,7 +84,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
     return () => {
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
     };
-  }, [flow, attempt, position]);
+  }, [flow, attempt]);
 
   async function handleComplete() {
     if (!attempt) return;
