@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import { POI_CATALOG } from './poi-data';
-import { CRYSTAL_CATALOG } from './crystal-data';
 
 const prisma = new PrismaClient();
 
@@ -92,14 +91,8 @@ async function main() {
     deleted = result.count;
   }
 
-  let crystalsCreated = 0;
-  for (const c of CRYSTAL_CATALOG) {
-    const exists = await prisma.crystal.findFirst({ where: { lat: c.lat, lng: c.lng } });
-    if (!exists) {
-      await prisma.crystal.create({ data: c });
-      crystalsCreated++;
-    }
-  }
+  // Кристаллы больше не заполняются вручную из файла — они появляются сами,
+  // по чанкам, когда игрок оказывается рядом (см. CrystalsService).
 
   const shopItems = [
     { name: 'Тёплая куртка "Урал"', category: 'clothing', priceCoins: 3000, rarity: 'common' },
@@ -117,7 +110,7 @@ async function main() {
 
   // eslint-disable-next-line no-console
   console.log(
-    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, ${deleted} устаревших удалено, ${crystalsCreated} новых кристаллов, предметы магазина загружены.`,
+    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, ${deleted} устаревших удалено, предметы магазина загружены.`,
   );
 }
 

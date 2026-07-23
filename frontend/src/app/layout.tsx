@@ -30,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={`${bitter.variable} ${manrope.variable} ${mono.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <div className="phone-frame">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import { api, ApiError } from '@/lib/api';
 interface Milestone {
   count: number;
   reward: number;
+  crystalReward: number;
   achieved: boolean;
   claimed: boolean;
   progress: number;
@@ -38,7 +39,7 @@ export default function QuestsPage() {
   if (!hydrated || !user) return null;
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-forest-dark">
+    <main className="relative h-full w-full overflow-hidden bg-forest-dark">
       <TopHud />
 
       <div
@@ -81,7 +82,9 @@ function MilestoneCard({ milestone }: { milestone: Milestone }) {
         {milestone.claimed ? (
           <CheckCircle2 size={18} className="text-forest" />
         ) : (
-          <span className="font-mono text-xs text-amber-dark">+{milestone.reward} баллов</span>
+          <span className="font-mono text-xs text-amber-dark">
+            +{milestone.reward} баллов · +{milestone.crystalReward} 💎
+          </span>
         )}
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">

@@ -124,7 +124,6 @@ model User {
   friendshipsReceived Friendship[]        @relation("FriendshipAddressee")
   chatParticipations  ChatParticipant[]
   messagesSent        Message[]
-  crystalPickups      CrystalPickup[]
 
   @@map("users")
 }
@@ -580,31 +579,25 @@ model Message {
 }
 
 // ============================================================
-// Бриллианты (кристаллы) — разбросанные по карте коллекционные точки,
-// в основном вдоль дорог/троп. Видны на карте только когда игрок
-// ближе 1 км, забрать можно вблизи (см. CrystalsService).
+// Бриллианты (кристаллы) — общий (единый для всех игроков) ресурс на карте.
+// Карта разбита на невидимые чанки ~1×1 км (как в Minecraft), в каждом
+// чанке — максимум 1 активный кристалл. Кристалл генерируется лениво,
+// когда какой-то игрок впервые оказывается рядом с чанком. После сбора
+// кристалл пропадает и через 24 часа появляется заново в новом случайном
+// месте того же чанка (см. CrystalsService и common/geo/chunk.util.ts).
 // ============================================================
 
 model Crystal {
-  id         String          @id @default(uuid())
-  lat        Float
-  lng        Float
-  reward     Int             @default(5) // сколько кристаллов (донат-валюты) даёт подбор
-  regionCode String          @default("RU-CHE")
-  createdAt  DateTime        @default(now())
-  pickups    CrystalPickup[]
+  id             String    @id @default(uuid())
+  chunkX         Int
+  chunkY         Int
+  lat            Float
+  lng            Float
+  reward         Int       @default(1)
+  pickedByUserId String?
+  pickedAt       DateTime?
+  createdAt      DateTime  @default(now())
 
+  @@unique([chunkX, chunkY])
   @@map("crystals")
-}
-
-model CrystalPickup {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  crystalId String
-  crystal   Crystal  @relation(fields: [crystalId], references: [id], onDelete: Cascade)
-  pickedAt  DateTime @default(now())
-
-  @@unique([userId, crystalId])
-  @@map("crystal_pickups")
 }

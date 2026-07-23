@@ -86,6 +86,6 @@ export interface VisitCompleteResult {
   xpAwarded?: number;
   coinsAwarded?: number;
   level?: number;
-  newMilestones?: { count: number; reward: number }[];
+  newMilestones?: { count: number; reward: number; crystalReward: number }[];
   message?: string;
 }

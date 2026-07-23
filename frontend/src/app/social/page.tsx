@@ -63,7 +63,7 @@ export default function SocialPage() {
   if (!hydrated || !user) return null;
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-forest-dark">
+    <main className="relative h-full w-full overflow-hidden bg-forest-dark">
       <TopHud />
       {view.type === 'list' ? (
         <FriendsListView onOpenChat={(roomId, friend) => setView({ type: 'chat', roomId, friend })} />

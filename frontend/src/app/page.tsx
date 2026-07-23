@@ -24,7 +24,7 @@ export default function CampPage() {
   if (!hydrated || !user) return null;
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-gradient-to-b from-forest-dark via-forest to-forest-dark">
+    <main className="relative h-full w-full overflow-hidden bg-gradient-to-b from-forest-dark via-forest to-forest-dark">
       <TopHud />
 
       <div

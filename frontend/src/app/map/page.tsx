@@ -74,7 +74,7 @@ export default function MapPage() {
   if (!hydrated || !user) return null;
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-forest-dark">
+    <main className="relative h-full w-full overflow-hidden bg-forest-dark">
       <MapView
         ref={mapRef}
         pois={pois}

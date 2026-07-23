@@ -23,27 +23,10 @@ export interface MapViewHandle {
 const DEFAULT_CENTER: [number, number] = [61.4, 55.15];
 const DEFAULT_ZOOM = 8;
 
-// Растровые тайлы CARTO Voyager (на базе данных OpenStreetMap) — реальные дороги,
-// здания, подписи городов. Бесплатно, без ограничений по количеству запросов
-// для некоммерческого использования. В проде — собственный тайл-сервер (SRS п.9.1, 14.3).
-const MAP_STYLE: any = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-      maxzoom: 20,
-      attribution: '© OpenStreetMap contributors © CARTO',
-    },
-  },
-  layers: [{ id: 'osm-tiles', type: 'raster', source: 'osm' }],
-};
+// Векторный стиль CARTO Voyager (готовый, официальный) — подписи городов берутся
+// из локального названия OSM (для России — кириллица), в отличие от растровых
+// тайлов, где язык нельзя переопределить на лету.
+const MAP_STYLE = 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 // Жёсткие границы карты — примерно очерчивают Челябинскую область с запасом,
 // чтобы карту нельзя было утащить/отдалить до вида всей страны/мира.
@@ -86,8 +69,21 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       maxBounds: CHELYABINSK_BOUNDS,
       attributionControl: { compact: true },
     });
-    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
     mapRef.current = map;
+
+    // Подстраховка: даже если у стиля где-то остался английский вариант названия
+    // (name:en/int_name), принудительно показываем локальное (для России — русское).
+    map.on('styledata', () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+      for (const layer of style.layers) {
+        if (layer.type !== 'symbol') continue;
+        const textField = (layer.layout as any)?.['text-field'];
+        if (textField && JSON.stringify(textField).includes('name:en')) {
+          map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:ru'], ['get', 'name']]);
+        }
+      }
+    });
 
     return () => {
       map.remove();

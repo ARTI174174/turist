@@ -94,10 +94,16 @@ export function POICard({ poi, position, onClose }: POICardProps) {
       setReward(res);
       if (res.status === 'verified') {
         setFlow('success');
+        const milestoneXp = (res.newMilestones ?? []).reduce((sum, m) => sum + m.reward, 0);
+        const milestoneCrystals = (res.newMilestones ?? []).reduce((sum, m) => sum + m.crystalReward, 0);
         if (res.xpAwarded && user) {
           updateUser({
-            progress: { xp: user.progress.xp + res.xpAwarded, rankCode: user.progress.rankCode },
-            wallet: { ...user.wallet, coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0) },
+            progress: { xp: user.progress.xp + res.xpAwarded + milestoneXp, rankCode: user.progress.rankCode },
+            wallet: {
+              ...user.wallet,
+              coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
+              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals,
+            },
           });
         }
         // Точка исчезает с карты сразу — сервер больше не отдаёт уже открытые этим игроком места
@@ -205,7 +211,7 @@ function ExploreControls({
           <div className="mt-1 space-y-1">
             {reward.newMilestones.map((m) => (
               <p key={m.count} className="font-mono text-xs text-amber-dark">
-                🏅 Веха «{m.count} мест» — ещё +{m.reward} баллов
+                🏅 Веха «{m.count} мест» — ещё +{m.reward} баллов · +{m.crystalReward} 💎
               </p>
             ))}
           </div>

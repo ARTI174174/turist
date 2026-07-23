@@ -39,15 +39,17 @@ export function levelBorderColor(level: number): string {
 
 // ============================================================
 // Вехи по количеству посещённых мест (SRS: экран «Задания»)
+// crystalReward — по порядковому номеру вехи в списке (1-я даёт 1 кристалл,
+// 2-я — 2, и т.д.), как попросил заказчик.
 // ============================================================
 export const VISIT_MILESTONES = [
-  { count: 1, reward: 10 },
-  { count: 5, reward: 500 },
-  { count: 10, reward: 1000 },
-  { count: 50, reward: 5000 },
-  { count: 100, reward: 10000 },
-  { count: 200, reward: 20000 },
-  { count: 500, reward: 50000 },
+  { count: 1, reward: 10, crystalReward: 1 },
+  { count: 5, reward: 500, crystalReward: 2 },
+  { count: 10, reward: 1000, crystalReward: 3 },
+  { count: 50, reward: 5000, crystalReward: 4 },
+  { count: 100, reward: 10000, crystalReward: 5 },
+  { count: 200, reward: 20000, crystalReward: 6 },
+  { count: 500, reward: 50000, crystalReward: 7 },
 ] as const;
 
 @Injectable()
@@ -93,7 +95,7 @@ export class ProgressionService {
     });
 
     const claimed = new Set(progress.visitMilestonesClaimed);
-    const newlyClaimed: { count: number; reward: number }[] = [];
+    const newlyClaimed: { count: number; reward: number; crystalReward: number }[] = [];
 
     for (const milestone of VISIT_MILESTONES) {
       if (totalVisits >= milestone.count && !claimed.has(milestone.count)) {
@@ -104,6 +106,8 @@ export class ProgressionService {
 
     if (newlyClaimed.length > 0) {
       const totalReward = newlyClaimed.reduce((sum, m) => sum + m.reward, 0);
+      const totalCrystals = newlyClaimed.reduce((sum, m) => sum + m.crystalReward, 0);
+
       await this.prisma.userProgress.update({
         where: { userId },
         data: {
@@ -111,6 +115,14 @@ export class ProgressionService {
           visitMilestonesClaimed: Array.from(claimed),
         },
       });
+
+      if (totalCrystals > 0) {
+        await this.prisma.wallet.upsert({
+          where: { userId },
+          update: { crystalsBalance: { increment: totalCrystals } },
+          create: { userId, crystalsBalance: totalCrystals },
+        });
+      }
     }
 
     return newlyClaimed;
@@ -124,6 +136,7 @@ export class ProgressionService {
     return VISIT_MILESTONES.map((m) => ({
       count: m.count,
       reward: m.reward,
+      crystalReward: m.crystalReward,
       achieved: totalVisits >= m.count,
       claimed: claimed.has(m.count),
       progress: Math.min(totalVisits, m.count),

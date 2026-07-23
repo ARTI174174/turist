@@ -47,7 +47,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-[100dvh] flex-col justify-center bg-topo px-6 py-10">
+    <main className="flex min-h-full flex-col justify-center bg-topo px-6 py-10">
       <div className="mx-auto w-full max-w-sm">
         <h1 className="mb-1 font-display text-3xl text-forest">Новый турист</h1>
         <p className="mb-6 text-sm text-stone">Только ник и пароль — без лишних данных</p>

@@ -12,12 +12,8 @@ class CrystalsController {
   constructor(private crystalsService: CrystalsService) {}
 
   @Get('nearby')
-  findNearby(
-    @CurrentUser() user: CurrentUserPayload,
-    @Query('lat') lat: string,
-    @Query('lng') lng: string,
-  ) {
-    return this.crystalsService.findNearby(user.userId, Number(lat), Number(lng));
+  findNearby(@Query('lat') lat: string, @Query('lng') lng: string) {
+    return this.crystalsService.findNearby(Number(lat), Number(lng));
   }
 
   @Post(':id/collect')

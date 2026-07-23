@@ -48,7 +48,7 @@ export default function PassportPage() {
   const totalKm = 0; // placeholder — считать по факту переходов между точками, следующий шаг
 
   return (
-    <main className="relative h-[100dvh] w-screen overflow-hidden bg-forest-dark">
+    <main className="relative h-full w-full overflow-hidden bg-forest-dark">
       <TopHud />
 
       <div
