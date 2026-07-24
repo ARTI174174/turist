@@ -79,7 +79,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 
   {
   title: 'День поля',
-  categoryCode: 'event',
+  categoryCode: 'rare',
   lat: 54.932586,
   lng: 60.736763,
   geofenceRadiusM: 1000,
