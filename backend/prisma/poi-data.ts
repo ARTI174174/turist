@@ -82,7 +82,7 @@ export const POI_CATALOG: PoiSeedData[] = [
   categoryCode: 'park',
   lat: 55.153070,
   lng: 58.691732,
-  geofenceRadiusM: 1000,
+  geofenceRadiusM: 350,
   descriptionHistory:
     'Айские притёсы — одна из самых известных природных достопримечательностей Южного Урала. Высокие известняковые скалы возвышаются над рекой Ай, открывая живописные панорамные виды и привлекая туристов, фотографов и любителей активного отдыха со всей России.',
   interestingFacts: [
@@ -442,7 +442,7 @@ export const POI_CATALOG: PoiSeedData[] = [
   categoryCode: 'historic',
   lat: 55.064320,
   lng: 59.04,
-  geofenceRadiusM: 3500,
+  geofenceRadiusM: 6300,
   descriptionHistory:
     'Сатка основана в 1758 году как железоделательный завод на реке Сатке. В XIX веке здесь добывали и обрабатывали магнезит, что привело к развитию металлургии [citation:1].',
   interestingFacts: [
