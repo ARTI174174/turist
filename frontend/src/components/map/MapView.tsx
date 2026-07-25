@@ -17,6 +17,8 @@ interface MapViewProps {
 export interface MapViewHandle {
   /** Центрирует карту на текущей позиции игрока (кнопка "Я" на карте). */
   recenterOnUser: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 // Челябинская область — точка отсчёта карты по умолчанию (пока GPS не определён)
@@ -54,6 +56,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         map.flyTo({ center: [position.lng, position.lat], zoom: Math.max(map.getZoom(), 13) });
       }
     },
+    zoomIn: () => mapRef.current?.zoomIn(),
+    zoomOut: () => mapRef.current?.zoomOut(),
   }));
 
   // Инициализация карты один раз
@@ -71,17 +75,50 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     });
     mapRef.current = map;
 
-    // Подстраховка: даже если у стиля где-то остался английский вариант названия
-    // (name:en/int_name), принудительно показываем локальное (для России — русское).
-    map.on('styledata', () => {
+    // Подписи городов/деревень/озёр у CARTO хранятся как {name} (локальное, для
+    // России — кириллица) и {name_en} (английское). У части слоёв стиль по
+    // умолчанию переключается на {name_en} при отдалении карты — раньше здесь
+    // ошибочно искали ключ "name:en" (через двоеточие), а реальный ключ —
+    // "name_en" (через подчёркивание), поэтому подмена не срабатывала.
+    // Заодно перекрашиваем карту под палитру приложения (лес/вода/дороги/дома).
+    map.once('style.load', () => {
       const style = map.getStyle();
       if (!style?.layers) return;
+
       for (const layer of style.layers) {
         if (layer.type !== 'symbol') continue;
         const textField = (layer.layout as any)?.['text-field'];
-        if (textField && JSON.stringify(textField).includes('name:en')) {
-          map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:ru'], ['get', 'name']]);
+        if (textField && JSON.stringify(textField).includes('name_en')) {
+          map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name'], ['get', 'name_en']]);
         }
+      }
+
+      const setPaint = (layerId: string, prop: string, value: any) => {
+        if (map.getLayer(layerId)) map.setPaintProperty(layerId, prop, value);
+      };
+
+      // Фон и лес/парки — в тон нашей палитры (parchment/moss)
+      setPaint('background', 'background-color', '#EFE8D8');
+      for (const id of ['landcover', 'park_national_park', 'park_nature_reserve']) {
+        setPaint(id, 'fill-color', 'rgba(76, 122, 94, 0.28)');
+      }
+      // Вода — приглушённый сине-зелёный вместо стандартного голубого
+      setPaint('water', 'fill-color', '#8fb8c2');
+      setPaint('water_shadow', 'fill-color', '#7aa5b0');
+      // Здания — тёплый парчмент с янтарной обводкой
+      setPaint('building', 'fill-color', '#e9dcc8');
+      setPaint('building-top', 'fill-color', '#f3e7d2');
+      setPaint('building-top', 'fill-outline-color', '#C68A3A');
+      // Крупные дороги — янтарные тона вместо стандартного жёлтого
+      for (const id of ['road_trunk_fill_noramp', 'road_trunk_fill_ramp', 'road_mot_fill_noramp', 'road_mot_fill_ramp']) {
+        setPaint(id, 'fill-color', '#DDA65C');
+      }
+      for (const id of ['road_pri_fill_noramp', 'road_pri_fill_ramp']) {
+        setPaint(id, 'fill-color', '#EAD9B4');
+      }
+      // Подписи городов — в тон основного текста приложения
+      for (const id of ['place_city_r5', 'place_city_r6', 'place_town', 'place_villages', 'place_hamlet', 'place_suburbs']) {
+        setPaint(id, 'text-color', '#2E5B47');
       }
     });
 
@@ -130,15 +167,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     for (const crystal of crystals) {
       const el = document.createElement('button');
       el.setAttribute('aria-label', 'Кристалл');
-      el.style.width = '22px';
-      el.style.height = '22px';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      el.style.fontSize = '16px';
+      el.style.width = '30px';
+      el.style.height = '30px';
+      el.style.backgroundImage = "url('/assets/icons/diamond.png')";
+      el.style.backgroundSize = 'contain';
+      el.style.backgroundRepeat = 'no-repeat';
+      el.style.backgroundPosition = 'center';
       el.style.cursor = 'pointer';
       el.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))';
-      el.textContent = '💎';
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([crystal.lng, crystal.lat])
@@ -157,20 +193,14 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     if (!userMarkerRef.current) {
       const el = document.createElement('div');
-      el.style.width = '40px';
-      el.style.height = '40px';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
+      el.style.width = '80px';
+      el.style.height = '80px';
+      el.style.backgroundImage = "url('/assets/icons/compass.png')";
+      el.style.backgroundSize = 'contain';
+      el.style.backgroundRepeat = 'no-repeat';
+      el.style.backgroundPosition = 'center';
       el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
-      el.innerHTML = `
-        <svg width="40" height="40" viewBox="0 0 40 40" style="transition: transform 0.2s ease;">
-          <circle cx="20" cy="20" r="17" fill="#1F4235" stroke="#EFE8D8" stroke-width="2.5" />
-          <circle cx="20" cy="20" r="17" fill="none" stroke="#C68A3A" stroke-width="1" stroke-dasharray="2 3" />
-          <path d="M20 8 L25 22 L20 19 L15 22 Z" fill="#C68A3A" />
-          <text x="20" y="7" text-anchor="middle" font-size="5" fill="#EFE8D8" font-family="sans-serif">N</text>
-        </svg>
-      `;
+      el.style.transition = 'transform 0.2s ease';
       userMarkerElRef.current = el;
 
       userMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
@@ -180,10 +210,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       userMarkerRef.current.setLngLat([position.lng, position.lat]);
     }
 
-    // Вращаем стрелку компаса по направлению взгляда устройства, если доступно
+    // Вращаем иконку по направлению взгляда устройства, если доступно
     if (userMarkerElRef.current && position.heading !== null) {
-      const svg = userMarkerElRef.current.querySelector('svg') as SVGElement | null;
-      if (svg) svg.style.transform = `rotate(${position.heading}deg)`;
+      userMarkerElRef.current.style.transform = `rotate(${position.heading}deg)`;
     }
 
     // Центрируем карту на игроке только один раз, при первом определении позиции —

@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tent, Music2, ShoppingBag } from 'lucide-react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { TopHud } from '@/components/hud/TopHud';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// Экран «Лагерь» — стартовый экран после запуска приложения.
-// Сейчас простая атмосферная заглушка; дальше сюда добавится
-// покупка палатки/одежды персонажа, музыка у костра и т.д. (см. магазин).
+// Экран «Лагерь» — стартовый экран после запуска приложения: атмосферный
+// фон с костром + зацикленная фоновая музыка. Дальше сюда добавится
+// покупка палатки/украшений лагеря через Магазин.
 export default function CampPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [hydrated, setHydrated] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => setHydrated(true), []);
 
@@ -21,48 +23,51 @@ export default function CampPage() {
     if (hydrated && !user) router.replace('/login');
   }, [hydrated, user, router]);
 
+  // Браузеры блокируют автовоспроизведение со звуком без жеста пользователя —
+  // поэтому по умолчанию звук выключен, а по тапу на кнопку музыки включаем звук.
+  function toggleSound() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (muted) {
+      audio.muted = false;
+      audio.play().catch(() => {});
+      setMuted(false);
+    } else {
+      audio.muted = true;
+      setMuted(true);
+    }
+  }
+
   if (!hydrated || !user) return null;
 
   return (
-    <main className="relative h-full w-full overflow-hidden bg-gradient-to-b from-forest-dark via-forest to-forest-dark">
+    <main
+      className="relative h-full w-full overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: "url('/assets/camp/camp-bg.jpg')" }}
+    >
+      <audio ref={audioRef} src="/assets/camp/camp-music.mp3" loop autoPlay muted={muted} />
+
+      <div className="absolute inset-0 bg-black/10" />
+
       <TopHud />
 
-      <div
-        className="flex h-full flex-col items-center justify-center gap-6 px-6 text-center"
-        style={{ paddingBottom: 90 }}
+      <button
+        onClick={toggleSound}
+        aria-label={muted ? 'Включить музыку' : 'Выключить музыку'}
+        className="absolute right-3 z-20 rounded-full bg-forest/80 p-3 text-parchment shadow-lg backdrop-blur"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
       >
-        {/* Простая сцена костра — эмодзи-заглушка, later заменится на 3D-сцену лагеря */}
-        <div className="relative">
-          <div className="text-7xl">🏕️</div>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-4xl animate-pulse">🔥</div>
-        </div>
+        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
 
-        <div>
-          <h1 className="font-display text-2xl text-parchment">Твой лагерь</h1>
-          <p className="mt-1 max-w-xs text-sm text-parchment/60">
-            Здесь появится твоя стоянка — обустраивай её между походами
-          </p>
-        </div>
-
-        <div className="grid w-full max-w-xs grid-cols-3 gap-3">
-          <FeatureTeaser icon={<Tent size={22} />} label="Палатка" />
-          <FeatureTeaser icon={<ShoppingBag size={22} />} label="Снаряжение" />
-          <FeatureTeaser icon={<Music2 size={22} />} label="Музыка" />
-        </div>
-
-        <p className="text-xs text-parchment/40">Скоро можно будет обустроить лагерь через Магазин</p>
+      <div className="absolute inset-x-0 bottom-24 px-6 text-center">
+        <h1 className="font-display text-2xl text-parchment drop-shadow">Твой лагерь</h1>
+        <p className="mt-1 text-sm text-parchment/80 drop-shadow">
+          Здесь появится твоя стоянка — обустраивай её через Магазин
+        </p>
       </div>
 
       <BottomNav />
     </main>
-  );
-}
-
-function FeatureTeaser({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl bg-parchment/10 py-4 text-parchment/70">
-      {icon}
-      <span className="text-[11px]">{label}</span>
-    </div>
   );
 }

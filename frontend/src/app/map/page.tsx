@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LocateFixed, Gem } from 'lucide-react';
 import { MapView, MapViewHandle } from '@/components/map/MapView';
 import { POICard } from '@/components/map/POICard';
 import { TopHud } from '@/components/hud/TopHud';
@@ -96,20 +95,38 @@ export default function MapPage() {
       {crystalMsg && (
         <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}>
           <p className="flex items-center gap-1 rounded-full bg-forest px-4 py-2 text-center text-xs text-parchment shadow-lg">
-            <Gem size={14} className="text-sky-300" /> {crystalMsg}
+            <img src="/assets/icons/diamond.png" alt="" className="h-4 w-4" /> {crystalMsg}
           </p>
         </div>
       )}
 
-      {/* Кнопка "Вернуться на себя" — центрирует карту на текущей позиции игрока */}
-      {!selectedPoi && position && (
-        <button
-          onClick={() => mapRef.current?.recenterOnUser()}
-          aria-label="Вернуться на мою позицию"
-          className="pointer-events-auto absolute bottom-24 right-3 z-20 rounded-full bg-forest p-3 text-parchment shadow-lg"
-        >
-          <LocateFixed size={22} />
-        </button>
+      {/* Управление картой: приблизить / отдалить / вернуться на себя */}
+      {!selectedPoi && (
+        <div className="pointer-events-none absolute bottom-24 right-3 z-20 flex flex-col gap-2">
+          <button
+            onClick={() => mapRef.current?.zoomIn()}
+            aria-label="Приблизить карту"
+            className="pointer-events-auto"
+          >
+            <img src="/assets/icons/zoom-in.png" alt="" className="h-12 w-12" />
+          </button>
+          {position && (
+            <button
+              onClick={() => mapRef.current?.recenterOnUser()}
+              aria-label="Вернуться на мою позицию"
+              className="pointer-events-auto"
+            >
+              <img src="/assets/icons/recenter.png" alt="" className="h-12 w-12" />
+            </button>
+          )}
+          <button
+            onClick={() => mapRef.current?.zoomOut()}
+            aria-label="Отдалить карту"
+            className="pointer-events-auto"
+          >
+            <img src="/assets/icons/zoom-out.png" alt="" className="h-12 w-12" />
+          </button>
+        </div>
       )}
 
       {selectedPoi && (

@@ -8,12 +8,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthResponse } from '@/types';
 import { CharacterPreview } from '@/components/character/CharacterPreview';
-
-// Тот же набор, что и на бэкенде (backend/src/auth/dto/register.dto.ts) — держать в синхроне
-const AVATAR_EMOJIS = [
-  '🙂', '😎', '🥳', '🤠', '🧗', '🏕️', '⛰️', '🌲', '🦊', '🐺',
-  '🦉', '🐻', '🦌', '🐿️', '🍁', '🔥', '🧭', '🎒', '⛺', '🌄',
-];
+import { AVATAR_EMOJIS } from '@/lib/avatars';
 
 export default function RegisterPage() {
   const router = useRouter();

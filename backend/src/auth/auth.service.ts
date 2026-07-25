@@ -147,6 +147,46 @@ export class AuthService {
     return { success: true };
   }
 
+  async changeNickname(userId: string, newNickname: string) {
+    const nicknameLower = newNickname.toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { nicknameLower } });
+    if (existing && existing.id !== userId) {
+      throw new ConflictException({ code: 'NICKNAME_TAKEN', message: 'Такой ник уже занят, выберите другой' });
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { nickname: newNickname, nicknameLower },
+      include: { character: true, wallet: true, progress: true },
+    });
+
+    return this.toPublicUser(user);
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const valid = await argon2.verify(user.passwordHash, currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Текущий пароль неверен' });
+    }
+
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    // Пароль сменился — на всякий случай завершаем все остальные сессии
+    await this.prisma.refreshToken.updateMany({ where: { userId, revoked: false }, data: { revoked: true } });
+
+    return { success: true };
+  }
+
+  async changeAvatar(userId: string, avatarEmoji: string) {
+    const character = await this.prisma.characterProfile.update({
+      where: { userId },
+      data: { avatarEmoji },
+    });
+    return character;
+  }
+
   private toPublicUser(user: any) {
     return {
       id: user.id,

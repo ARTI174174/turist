@@ -1,16 +1,14 @@
 'use client';
 
-import { Flame, Map, ListChecks, ShoppingBag, BookUser, Users } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 
 const TABS = [
-  { href: '/', label: 'Лагерь', icon: Flame },
-  { href: '/map', label: 'Карта', icon: Map },
-  { href: '/quests', label: 'Задания', icon: ListChecks },
-  { href: '/shop', label: 'Магазин', icon: ShoppingBag },
-  { href: '/passport', label: 'Паспорт', icon: BookUser },
-  { href: '/social', label: 'Друзья', icon: Users },
+  { href: '/profile', label: 'Профиль', icon: '/assets/icons/profile.png' },
+  { href: '/', label: 'Лагерь', icon: '/assets/icons/camp.png' },
+  { href: '/map', label: 'В путь', icon: '/assets/icons/go.png', primary: true },
+  { href: '/passport', label: 'Дневник', icon: '/assets/icons/diary.png' },
+  { href: '/social', label: 'Друзья', icon: '/assets/icons/friends.png' },
 ];
 
 export function BottomNav() {
@@ -19,22 +17,24 @@ export function BottomNav() {
 
   return (
     <nav
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t border-black/10 bg-forest/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.25)] backdrop-blur"
+      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex items-end justify-around bg-contain bg-bottom bg-no-repeat pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-4"
+      style={{ backgroundImage: "url('/assets/icons/nav-bar.png')" }}
       aria-label="Основная навигация"
     >
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {TABS.map(({ href, label, icon, primary }) => {
         const active = pathname === href;
         return (
           <button
             key={href}
             onClick={() => router.push(href)}
             className={clsx(
-              'flex min-w-[64px] flex-col items-center gap-1 px-2 py-2.5 text-[11px] transition-colors',
-              active ? 'text-amber' : 'text-parchment/60',
+              'flex min-w-[56px] flex-col items-center gap-1 text-[10px] transition-transform',
+              primary && '-translate-y-3',
+              active ? 'text-amber' : 'text-parchment/70',
             )}
             aria-current={active ? 'page' : undefined}
           >
-            <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+            <img src={icon} alt="" className={primary ? 'h-12 w-12' : 'h-7 w-7'} />
             {label}
           </button>
         );
