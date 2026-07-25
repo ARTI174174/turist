@@ -458,8 +458,8 @@ export const POI_CATALOG: PoiSeedData[] = [
 {
   title: 'Чебаркуль',
   categoryCode: 'historic',
-  lat: 54.98,
-  lng: 59.008067,
+  lat: 54.977790,
+  lng: 60.370120,
   geofenceRadiusM: 6300,
   descriptionHistory:
     'Чебаркуль основан в 1736 году как крепость на берегу озера Чебаркуль. В XIX веке стал крупным торговым селом. Статус города получил в 1951 году [citation:1].',
