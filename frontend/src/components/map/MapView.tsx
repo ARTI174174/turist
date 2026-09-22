@@ -192,16 +192,24 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!map || !position) return;
 
     if (!userMarkerRef.current) {
+      // el — контейнер ТОЛЬКО для MapLibre (он пишет сюда translate для позиции)
       const el = document.createElement('div');
       el.style.width = '80px';
       el.style.height = '80px';
-      el.style.backgroundImage = "url('/assets/icons/compass.png')";
-      el.style.backgroundSize = 'contain';
-      el.style.backgroundRepeat = 'no-repeat';
-      el.style.backgroundPosition = 'center';
-      el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
-      el.style.transition = 'transform 0.2s ease';
-      userMarkerElRef.current = el;
+
+      // inner — вложенный элемент с иконкой, только сюда пишем rotate
+      // Два разных элемента = MapLibre и мы не перезаписываем transform друг друга
+      const inner = document.createElement('div');
+      inner.style.width = '100%';
+      inner.style.height = '100%';
+      inner.style.backgroundImage = "url('/assets/icons/compass.png')";
+      inner.style.backgroundSize = 'contain';
+      inner.style.backgroundRepeat = 'no-repeat';
+      inner.style.backgroundPosition = 'center';
+      inner.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
+      inner.style.transition = 'transform 0.2s ease';
+      el.appendChild(inner);
+      userMarkerElRef.current = inner; // <-- ref теперь на inner, не на el
 
       userMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
         .setLngLat([position.lng, position.lat])
@@ -210,7 +218,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       userMarkerRef.current.setLngLat([position.lng, position.lat]);
     }
 
-    // Вращаем иконку по направлению взгляда устройства, если доступно
+    // Вращаем INNER (не el!) — MapLibre не трогает inner, только el
     if (userMarkerElRef.current && position.heading !== null) {
       userMarkerElRef.current.style.transform = `rotate(${position.heading}deg)`;
     }
