@@ -80,6 +80,7 @@ export default function MapPage() {
         pois={pois}
         crystals={crystals}
         position={position}
+        userAvatar={user.character?.avatarEmoji ?? '🙂'}
         onSelectPoi={selectPoi}
         onSelectCrystal={handleSelectCrystal}
       />

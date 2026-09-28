@@ -10,6 +10,7 @@ interface MapViewProps {
   pois: Poi[];
   crystals?: Crystal[];
   position: GeoPosition | null;
+  userAvatar: string;
   onSelectPoi: (poi: Poi) => void;
   onSelectCrystal?: (crystal: Crystal) => void;
 }
@@ -30,7 +31,7 @@ const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { pois, crystals = [], position, onSelectPoi, onSelectCrystal },
+  { pois, crystals = [], position, userAvatar, onSelectPoi, onSelectCrystal },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +39,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const markersRef = useRef<Marker[]>([]);
   const crystalMarkersRef = useRef<Marker[]>([]);
   const userMarkerRef = useRef<Marker | null>(null);
-  const userMarkerElRef = useRef<HTMLDivElement | null>(null);
+  const userAvatarContainerRef = useRef<HTMLDivElement | null>(null);
+  const userHeadingLayerRef = useRef<HTMLDivElement | null>(null);
+  const userAvatarValueRef = useRef<string | null>(null);
   const hasCenteredOnceRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
@@ -146,7 +149,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markersRef.current = [];
       crystalMarkersRef.current = [];
       userMarkerRef.current = null;
-      userMarkerElRef.current = null;
+      userAvatarContainerRef.current = null;
+      userHeadingLayerRef.current = null;
+      userAvatarValueRef.current = null;
       hasCenteredOnceRef.current = false;
       setMapReady(false);
       map.remove();
@@ -224,8 +229,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [crystals, mapReady]);
 
-  // Позиция игрока — компас. MapLibre трансформирует внешний элемент,
-  // поворот применяется только к вложенному inner.
+  // Маркер игрока показывает выбранный аватар, а отдельная стрелка указывает направление.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !position) return;
@@ -233,25 +237,53 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!userMarkerRef.current) {
       // el — контейнер ТОЛЬКО для MapLibre (он пишет сюда translate для позиции)
       const el = document.createElement('div');
-      el.style.width = '80px';
-      el.style.height = '80px';
+      el.style.width = '72px';
+      el.style.height = '72px';
       el.style.zIndex = '12';
 
       const inner = document.createElement('div');
       inner.style.width = '100%';
       inner.style.height = '100%';
-      inner.style.backgroundImage = "url('/assets/icons/compass.png')";
-      inner.style.backgroundSize = 'contain';
-      inner.style.backgroundRepeat = 'no-repeat';
-      inner.style.backgroundPosition = 'center';
-      inner.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
-      inner.style.transition = 'transform 0.2s ease';
+      inner.style.boxSizing = 'border-box';
+      inner.style.position = 'relative';
+      inner.style.border = '3px solid #f1ead9';
+      inner.style.borderRadius = '50%';
+      inner.style.background = '#173d2f';
+      inner.style.boxShadow = '0 0 0 2px #b5a775, 0 2px 7px rgba(0,0,0,0.55)';
 
+      const avatarContainer = document.createElement('div');
+      avatarContainer.style.position = 'absolute';
+      avatarContainer.style.inset = '5px';
+      avatarContainer.style.overflow = 'hidden';
+      avatarContainer.style.borderRadius = '50%';
+      avatarContainer.style.background = '#253329';
+
+      const headingLayer = document.createElement('div');
+      headingLayer.style.position = 'absolute';
+      headingLayer.style.inset = '0';
+      headingLayer.style.transition = 'transform 0.2s ease';
+      headingLayer.style.pointerEvents = 'none';
+      const arrow = document.createElement('div');
+      arrow.style.position = 'absolute';
+      arrow.style.top = '-3px';
+      arrow.style.left = '50%';
+      arrow.style.marginLeft = '-7px';
+      arrow.style.width = '0';
+      arrow.style.height = '0';
+      arrow.style.borderLeft = '7px solid transparent';
+      arrow.style.borderRight = '7px solid transparent';
+      arrow.style.borderBottom = '15px solid #f0a526';
+      arrow.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))';
+      headingLayer.appendChild(arrow);
+
+      inner.appendChild(avatarContainer);
+      inner.appendChild(headingLayer);
       el.appendChild(inner);
-      userMarkerElRef.current = inner;
+      userAvatarContainerRef.current = avatarContainer;
+      userHeadingLayerRef.current = headingLayer;
       userMarkerRef.current = new maplibregl.Marker({
         element: el,
-        rotationAlignment: 'map',
+        rotationAlignment: 'viewport',
       })
         .setLngLat([position.lng, position.lat])
         .addTo(map);
@@ -259,15 +291,38 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       userMarkerRef.current.setLngLat([position.lng, position.lat]);
     }
 
-    if (userMarkerElRef.current && position.heading !== null) {
-      userMarkerElRef.current.style.transform = `rotate(${position.heading}deg)`;
+    if (userAvatarContainerRef.current && userAvatarValueRef.current !== userAvatar) {
+      userAvatarContainerRef.current.replaceChildren();
+      if (/^\/assets\/avatars\/\d+\.jpg$/.test(userAvatar)) {
+        const avatar = document.createElement('img');
+        avatar.src = userAvatar;
+        avatar.alt = 'Ваш аватар';
+        avatar.style.width = '100%';
+        avatar.style.height = '100%';
+        avatar.style.objectFit = 'cover';
+        userAvatarContainerRef.current.appendChild(avatar);
+      } else {
+        const fallback = document.createElement('span');
+        fallback.textContent = userAvatar || '🙂';
+        fallback.style.width = '100%';
+        fallback.style.height = '100%';
+        fallback.style.display = 'flex';
+        fallback.style.alignItems = 'center';
+        fallback.style.justifyContent = 'center';
+        fallback.style.fontSize = '30px';
+        userAvatarContainerRef.current.appendChild(fallback);
+      }
+      userAvatarValueRef.current = userAvatar;
+    }
+    if (userHeadingLayerRef.current && position.heading !== null) {
+      userHeadingLayerRef.current.style.transform = `rotate(${position.heading}deg)`;
     }
 
     if (!hasCenteredOnceRef.current) {
       hasCenteredOnceRef.current = true;
       map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
     }
-  }, [position, mapReady]);
+  }, [position, mapReady, userAvatar]);
 
   return <div ref={containerRef} className="map-viewport" />;
 });

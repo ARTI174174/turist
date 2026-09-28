@@ -48,6 +48,11 @@ class SocialController {
     return this.socialService.listIncomingRequests(user.userId);
   }
 
+  @Get('friends/requests/outgoing')
+  listOutgoingRequests(@CurrentUser() user: CurrentUserPayload) {
+    return this.socialService.listOutgoingRequests(user.userId);
+  }
+
 }
 
 @Module({

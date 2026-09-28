@@ -13,9 +13,12 @@ import { Poi } from '@/types';
 import { POICard } from '@/components/map/POICard';
 
 interface Friend {
-  id: string; nickname: string; avatarEmoji: string; xp: number; level: number; borderColor: string;
+  id: string; nickname: string; avatarEmoji: string; xp: number; level: number; borderColor: string; friendCount: number;
 }
 interface IncomingRequest {
+  friendshipId: string; nickname: string; avatarEmoji: string; createdAt: string;
+}
+interface OutgoingRequest {
   friendshipId: string; nickname: string; avatarEmoji: string; createdAt: string;
 }
 interface FoundUser {
@@ -55,6 +58,7 @@ function FriendsListView({ onSelectFriend }: { onSelectFriend: (id: string) => v
   const [actionError, setActionError] = useState<string | null>(null);
   const { data: friends = [] } = useQuery<Friend[]>({ queryKey: ['social', 'friends'], queryFn: () => api.get<Friend[]>('/social/friends') });
   const { data: requests = [] } = useQuery<IncomingRequest[]>({ queryKey: ['social', 'requests'], queryFn: () => api.get<IncomingRequest[]>('/social/friends/requests') });
+  const { data: outgoingRequests = [] } = useQuery<OutgoingRequest[]>({ queryKey: ['social', 'outgoing-requests'], queryFn: () => api.get<OutgoingRequest[]>('/social/friends/requests/outgoing'), refetchInterval: 15_000 });
   const { data: foundUser, isFetching: searching } = useQuery<FoundUser | null>({
     queryKey: ['social', 'search', searchTerm],
     queryFn: () => api.get<FoundUser | null>(`/social/search?nickname=${encodeURIComponent(searchTerm)}`),
@@ -66,6 +70,7 @@ function FriendsListView({ onSelectFriend }: { onSelectFriend: (id: string) => v
     try {
       await api.post('/social/friends/request', { nickname });
       await queryClient.invalidateQueries({ queryKey: ['social', 'search'] });
+      await queryClient.invalidateQueries({ queryKey: ['social', 'outgoing-requests'] });
       setSearchTerm(''); setSearchInput('');
     } catch (error) {
       setActionError(error instanceof ApiError ? error.message : 'Не удалось отправить заявку');
@@ -94,10 +99,13 @@ function FriendsListView({ onSelectFriend }: { onSelectFriend: (id: string) => v
       {requests.length > 0 && <section className="mb-5"><p className="mb-2 font-display text-sm text-ink">Заявки в друзья</p><div className="space-y-2">
         {requests.map((request) => <div key={request.friendshipId} className="adventure-card flex items-center justify-between rounded-2xl p-3"><div className="flex items-center gap-2"><AvatarImage value={request.avatarEmoji} className="avatar-portrait h-10 w-10 rounded-full border-2 border-brass p-0.5 text-lg" imageClassName="rounded-full" /><span className="text-sm text-ink">{request.nickname}</span></div><div className="flex gap-2"><button onClick={() => void respond(request.friendshipId, true)} aria-label="Принять" className="adventure-primary rounded-full p-1.5"><Check size={14} /></button><button onClick={() => void respond(request.friendshipId, false)} aria-label="Отклонить" className="rounded-full bg-danger/80 p-1.5 text-parchment"><X size={14} /></button></div></div>)}
       </div></section>}
+      {outgoingRequests.length > 0 && <section className="mb-5"><p className="mb-2 font-display text-sm text-ink">Отправленные заявки</p><div className="space-y-2">
+        {outgoingRequests.map((request) => <div key={request.friendshipId} className="adventure-card flex items-center gap-2 rounded-2xl p-3"><AvatarImage value={request.avatarEmoji} className="avatar-portrait h-10 w-10 rounded-full border-2 border-brass p-0.5 text-lg" imageClassName="rounded-full" /><span className="min-w-0 flex-1 truncate text-sm text-ink">{request.nickname}</span><span className="shrink-0 text-[10px] text-stone">Ожидает ответа</span></div>)}
+      </div></section>}
       <p className="mb-2 font-display text-sm text-ink">Мои друзья ({friends.length})</p>
       <div className="space-y-2">{friends.map((friend) => <button key={friend.id} onClick={() => onSelectFriend(friend.id)} className="adventure-card flex w-full items-center gap-3 rounded-2xl p-3 text-left">
         <AvatarImage value={friend.avatarEmoji} className="avatar-portrait h-12 w-12 rounded-full border-[3px] p-0.5 text-xl" imageClassName="rounded-full" style={{ borderColor: friend.borderColor }} />
-        <span className="min-w-0 flex-1"><span className="block truncate text-sm text-ink">{friend.nickname}</span><span className="font-mono text-[11px] text-stone">Уровень {friend.level} · {friend.xp} баллов</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm text-ink">{friend.nickname}</span><span className="font-mono text-[11px] text-stone">Ур. {friend.level} · Друзей: {friend.friendCount}</span></span>
         <span className="text-[10px] text-stone">Достижения →</span>
       </button>)}{friends.length === 0 && <p className="adventure-card rounded-2xl p-4 text-center text-sm text-stone">Пока нет друзей — найди кого-нибудь по нику выше</p>}</div>
     </div>
@@ -117,7 +125,7 @@ function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () 
     {data && <>
       <div className="adventure-card mb-5 flex items-center gap-3 rounded-2xl p-3">
         <AvatarImage value={data.avatarEmoji} className="avatar-portrait h-14 w-14 rounded-full border-[3px] p-0.5 text-2xl" imageClassName="rounded-full" />
-        <div><h1 className="font-display text-lg text-ink">{data.nickname}</h1><p className="text-xs text-stone">Уровень {data.level} · {data.xp} баллов</p></div>
+        <div><h1 className="font-display text-lg text-ink">{data.nickname}</h1><p className="text-xs text-stone">Уровень {data.level} · Друзей: {data.friendCount}</p></div>
       </div>
       <h2 className="mb-2 flex items-center gap-2 font-display text-sm text-ink"><MapPin size={16} /> Паспорт путешественника · {data.visitedPlaces.length}</h2>
       <div className="mb-5 space-y-2">{data.visitedPlaces.map((place) => <button key={place.id} onClick={() => setSelectedPoi(place.poi)} aria-label={`Открыть ${place.title} и комментарии`} className="adventure-card flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left">

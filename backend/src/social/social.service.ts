@@ -128,6 +128,7 @@ export class SocialService {
       where: { id: { in: friendIds } },
       include: { character: true, progress: true },
     });
+    const friendCounts = await this.countAcceptedFriends(friendIds);
 
     return friends
       .map((f) => {
@@ -140,6 +141,7 @@ export class SocialService {
           xp,
           level,
           borderColor: levelBorderColor(level),
+          friendCount: friendCounts.get(f.id) ?? 0,
         };
       })
       .sort((a, b) => b.xp - a.xp);
@@ -166,6 +168,20 @@ export class SocialService {
     }));
   }
 
+  async listOutgoingRequests(userId: string) {
+    const requests = await this.prisma.friendship.findMany({
+      where: { requesterId: userId, status: 'pending' },
+      orderBy: { createdAt: 'desc' },
+      include: { addressee: { include: { character: true } } },
+    });
+    return requests.map((request) => ({
+      friendshipId: request.id,
+      nickname: request.addressee.nickname,
+      avatarEmoji: request.addressee.character?.avatarEmoji ?? '🙂',
+      createdAt: request.createdAt,
+    }));
+  }
+
   async getFriendProfile(userId: string, friendUserId: string) {
     await this.assertAreFriends(userId, friendUserId);
     const friend = await this.prisma.user.findUnique({
@@ -182,6 +198,7 @@ export class SocialService {
     });
     const xp = friend.progress?.xp ?? 0;
     const level = resolveLevel(xp).level;
+    const friendCounts = await this.countAcceptedFriends([friend.id]);
     return {
       id: friend.id,
       nickname: friend.nickname,
@@ -189,6 +206,7 @@ export class SocialService {
       xp,
       level,
       borderColor: levelBorderColor(level),
+      friendCount: friendCounts.get(friend.id) ?? 0,
       visitedPlaces: visits.map((visit) => ({
         id: visit.id,
         poiId: visit.poiId,
@@ -199,6 +217,24 @@ export class SocialService {
         poi: visit.poi,
       })),
     };
+  }
+
+  private async countAcceptedFriends(userIds: string[]) {
+    const counts = new Map<string, number>(userIds.map((id) => [id, 0]));
+    if (userIds.length === 0) return counts;
+    const idSet = new Set(userIds);
+    const friendships = await this.prisma.friendship.findMany({
+      where: {
+        status: 'accepted',
+        OR: [{ requesterId: { in: userIds } }, { addresseeId: { in: userIds } }],
+      },
+      select: { requesterId: true, addresseeId: true },
+    });
+    for (const friendship of friendships) {
+      if (idSet.has(friendship.requesterId)) counts.set(friendship.requesterId, (counts.get(friendship.requesterId) ?? 0) + 1);
+      if (idSet.has(friendship.addresseeId)) counts.set(friendship.addresseeId, (counts.get(friendship.addresseeId) ?? 0) + 1);
+    }
+    return counts;
   }
 
   private async assertAreFriends(userId: string, otherUserId: string) {
