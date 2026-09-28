@@ -58,12 +58,12 @@ export default function CampPage() {
         onClick={toggleSound}
         aria-label={muted ? 'Включить музыку' : 'Выключить музыку'}
         className="hud-panel absolute right-3 z-20 rounded-full p-3 text-parchment backdrop-blur"
-        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 104px)' }}
       >
         {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
 
-      <div className="relative z-20"><BottomNav /></div>
+      <BottomNav />
     </main>
   );
 }
