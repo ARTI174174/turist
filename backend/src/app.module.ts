@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PoiModule } from './poi/poi.module';
@@ -18,7 +19,7 @@ import { CrystalsModule } from './crystals/crystals.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
-        limit: 100, // базовый лимит: 100 запросов/мин на клиента
+        limit: 100,
       },
     ]),
     PrismaModule,
@@ -31,6 +32,12 @@ import { CrystalsModule } from './crystals/crystals.module';
     SocialModule,
     NotificationsModule,
     CrystalsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

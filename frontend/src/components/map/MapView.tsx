@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Poi, Crystal } from '@/types';
@@ -21,17 +21,9 @@ export interface MapViewHandle {
   zoomOut: () => void;
 }
 
-// Челябинская область — точка отсчёта карты по умолчанию (пока GPS не определён)
 const DEFAULT_CENTER: [number, number] = [61.4, 55.15];
 const DEFAULT_ZOOM = 8;
-
-// Векторный стиль CARTO Voyager (готовый, официальный) — подписи городов берутся
-// из локального названия OSM (для России — кириллица), в отличие от растровых
-// тайлов, где язык нельзя переопределить на лету.
 const MAP_STYLE = 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-
-// Жёсткие границы карты — примерно очерчивают Челябинскую область с запасом,
-// чтобы карту нельзя было утащить/отдалить до вида всей страны/мира.
 const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
   [56.0, 50.5],
   [64.0, 56.8],
@@ -48,6 +40,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const userMarkerRef = useRef<Marker | null>(null);
   const userMarkerElRef = useRef<HTMLDivElement | null>(null);
   const hasCenteredOnceRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
+
+  // Храним актуальные callback-и, чтобы обновление GPS/родителя не заставляло
+  // заново пересоздавать все маркеры.
+  const onSelectPoiRef = useRef(onSelectPoi);
+  const onSelectCrystalRef = useRef(onSelectCrystal);
+  useEffect(() => {
+    onSelectPoiRef.current = onSelectPoi;
+    onSelectCrystalRef.current = onSelectCrystal;
+  }, [onSelectPoi, onSelectCrystal]);
 
   useImperativeHandle(ref, () => ({
     recenterOnUser: () => {
@@ -58,9 +60,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     },
     zoomIn: () => mapRef.current?.zoomIn(),
     zoomOut: () => mapRef.current?.zoomOut(),
-  }));
+  }), [position]);
 
-  // Инициализация карты один раз
+  // Инициализация карты один раз.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -73,14 +75,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       maxBounds: CHELYABINSK_BOUNDS,
       attributionControl: { compact: true },
     });
+
     mapRef.current = map;
 
-    // Подписи городов/деревень/озёр у CARTO хранятся как {name} (локальное, для
-    // России — кириллица) и {name_en} (английское). У части слоёв стиль по
-    // умолчанию переключается на {name_en} при отдалении карты — раньше здесь
-    // ошибочно искали ключ "name:en" (через двоеточие), а реальный ключ —
-    // "name_en" (через подчёркивание), поэтому подмена не срабатывала.
-    // Заодно перекрашиваем карту под палитру приложения (лес/вода/дороги/дома).
+    const handleLoad = () => {
+      // Ключевой фикс: POI/кристаллы начинают рисоваться только после того,
+      // как MapLibre действительно готов принимать маркеры.
+      setMapReady(true);
+    };
+    map.once('load', handleLoad);
+
     map.once('style.load', () => {
       const style = map.getStyle();
       if (!style?.layers) return;
@@ -89,7 +93,11 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         if (layer.type !== 'symbol') continue;
         const textField = (layer.layout as any)?.['text-field'];
         if (textField && JSON.stringify(textField).includes('name_en')) {
-          map.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name'], ['get', 'name_en']]);
+          map.setLayoutProperty(layer.id, 'text-field', [
+            'coalesce',
+            ['get', 'name'],
+            ['get', 'name_en'],
+          ]);
         }
       }
 
@@ -97,131 +105,168 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         if (map.getLayer(layerId)) map.setPaintProperty(layerId, prop, value);
       };
 
-      // Фон и лес/парки — в тон нашей палитры (parchment/moss)
       setPaint('background', 'background-color', '#EFE8D8');
       for (const id of ['landcover', 'park_national_park', 'park_nature_reserve']) {
         setPaint(id, 'fill-color', 'rgba(76, 122, 94, 0.28)');
       }
-      // Вода — приглушённый сине-зелёный вместо стандартного голубого
       setPaint('water', 'fill-color', '#8fb8c2');
       setPaint('water_shadow', 'fill-color', '#7aa5b0');
-      // Здания — тёплый парчмент с янтарной обводкой
       setPaint('building', 'fill-color', '#e9dcc8');
       setPaint('building-top', 'fill-color', '#f3e7d2');
       setPaint('building-top', 'fill-outline-color', '#C68A3A');
-      // Крупные дороги — янтарные тона вместо стандартного жёлтого
-      for (const id of ['road_trunk_fill_noramp', 'road_trunk_fill_ramp', 'road_mot_fill_noramp', 'road_mot_fill_ramp']) {
+
+      for (const id of [
+        'road_trunk_fill_noramp',
+        'road_trunk_fill_ramp',
+        'road_mot_fill_noramp',
+        'road_mot_fill_ramp',
+      ]) {
         setPaint(id, 'fill-color', '#DDA65C');
       }
       for (const id of ['road_pri_fill_noramp', 'road_pri_fill_ramp']) {
         setPaint(id, 'fill-color', '#EAD9B4');
       }
-      // Подписи городов — в тон основного текста приложения
-      for (const id of ['place_city_r5', 'place_city_r6', 'place_town', 'place_villages', 'place_hamlet', 'place_suburbs']) {
+      for (const id of [
+        'place_city_r5',
+        'place_city_r6',
+        'place_town',
+        'place_villages',
+        'place_hamlet',
+        'place_suburbs',
+      ]) {
         setPaint(id, 'text-color', '#2E5B47');
       }
     });
 
     return () => {
+      map.off('load', handleLoad);
+      markersRef.current.forEach((m) => m.remove());
+      crystalMarkersRef.current.forEach((m) => m.remove());
+      userMarkerRef.current?.remove();
+      markersRef.current = [];
+      crystalMarkersRef.current = [];
+      userMarkerRef.current = null;
+      userMarkerElRef.current = null;
+      hasCenteredOnceRef.current = false;
+      setMapReady(false);
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Обновление маркеров точек интереса при изменении списка
+  // POI-маркеры. Зависимость от mapReady устраняет гонку между React-данными
+  // и асинхронной загрузкой MapLibre.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
     for (const poi of pois) {
+      if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
+
       const el = document.createElement('button');
+      el.type = 'button';
       el.setAttribute('aria-label', poi.title);
-      el.style.width = '28px';
-      el.style.height = '28px';
+      el.style.width = '32px';
+      el.style.height = '32px';
       el.style.borderRadius = '9999px';
       el.style.border = '2px solid #EFE8D8';
-      el.style.background = poi.category.colorHex;
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.4)';
+      el.style.background = poi.category?.colorHex || '#C68A3A';
+      el.style.boxShadow = '0 1px 5px rgba(0,0,0,0.45)';
       el.style.cursor = 'pointer';
+      el.style.padding = '0';
+      el.style.zIndex = '10';
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
-      el.addEventListener('click', () => onSelectPoi(poi));
+      el.addEventListener('click', () => onSelectPoiRef.current(poi));
       markersRef.current.push(marker);
     }
-  }, [pois, onSelectPoi]);
+  }, [pois, mapReady]);
 
-  // Маркеры кристаллов — маленькие бриллианты, видны только в радиусе (сервер уже фильтрует)
+  // Кристаллы.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     crystalMarkersRef.current.forEach((m) => m.remove());
     crystalMarkersRef.current = [];
 
     for (const crystal of crystals) {
+      if (!Number.isFinite(crystal.lat) || !Number.isFinite(crystal.lng)) continue;
+
       const el = document.createElement('button');
+      el.type = 'button';
       el.setAttribute('aria-label', 'Кристалл');
-      el.style.width = '30px';
-      el.style.height = '30px';
+      el.style.width = '36px';
+      el.style.height = '36px';
       el.style.backgroundImage = "url('/assets/icons/diamond.png')";
       el.style.backgroundSize = 'contain';
       el.style.backgroundRepeat = 'no-repeat';
       el.style.backgroundPosition = 'center';
       el.style.cursor = 'pointer';
+      el.style.padding = '0';
+      el.style.border = '0';
+      el.style.backgroundColor = 'transparent';
       el.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))';
+      el.style.zIndex = '11';
 
-      const marker = new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([crystal.lng, crystal.lat])
         .addTo(map);
 
-      el.addEventListener('click', () => onSelectCrystal?.(crystal));
+      el.addEventListener('click', () => onSelectCrystalRef.current?.(crystal));
       crystalMarkersRef.current.push(marker);
     }
-  }, [crystals, onSelectCrystal]);
+  }, [crystals, mapReady]);
 
-  // Позиция игрока — компас вместо синей точки, разворачивается по направлению
-  // взгляда (Device Orientation), первый фикс сразу центрирует карту.
+  // Позиция игрока — компас. MapLibre трансформирует внешний элемент,
+  // поворот применяется только к вложенному inner.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !position) return;
+    if (!map || !mapReady || !position) return;
 
     if (!userMarkerRef.current) {
       const el = document.createElement('div');
       el.style.width = '80px';
       el.style.height = '80px';
-      el.style.backgroundImage = "url('/assets/icons/compass.png')";
-      el.style.backgroundSize = 'contain';
-      el.style.backgroundRepeat = 'no-repeat';
-      el.style.backgroundPosition = 'center';
-      el.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
-      el.style.transition = 'transform 0.2s ease';
-      userMarkerElRef.current = el;
+      el.style.zIndex = '12';
 
-      userMarkerRef.current = new maplibregl.Marker({ element: el, rotationAlignment: 'map' })
+      const inner = document.createElement('div');
+      inner.style.width = '100%';
+      inner.style.height = '100%';
+      inner.style.backgroundImage = "url('/assets/icons/compass.png')";
+      inner.style.backgroundSize = 'contain';
+      inner.style.backgroundRepeat = 'no-repeat';
+      inner.style.backgroundPosition = 'center';
+      inner.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
+      inner.style.transition = 'transform 0.2s ease';
+
+      el.appendChild(inner);
+      userMarkerElRef.current = inner;
+      userMarkerRef.current = new maplibregl.Marker({
+        element: el,
+        rotationAlignment: 'map',
+      })
         .setLngLat([position.lng, position.lat])
         .addTo(map);
     } else {
       userMarkerRef.current.setLngLat([position.lng, position.lat]);
     }
 
-    // Вращаем иконку по направлению взгляда устройства, если доступно
     if (userMarkerElRef.current && position.heading !== null) {
       userMarkerElRef.current.style.transform = `rotate(${position.heading}deg)`;
     }
 
-    // Центрируем карту на игроке только один раз, при первом определении позиции —
-    // дальше пользователь сам управляет картой (не "прыгает" под ногами при каждом обновлении GPS)
     if (!hasCenteredOnceRef.current) {
       hasCenteredOnceRef.current = true;
       map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
     }
-  }, [position]);
+  }, [position, mapReady]);
 
   return <div ref={containerRef} className="map-viewport" />;
 });

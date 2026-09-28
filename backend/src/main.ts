@@ -5,11 +5,47 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const jwtSecret = process.env.JWT_ACCESS_SECRET;
+
+  // Никогда не запускаем production с известным fallback-секретом.
+  if (isProduction && (!jwtSecret || jwtSecret.length < 32)) {
+    throw new Error('JWT_ACCESS_SECRET must be set and contain at least 32 characters in production');
+  }
+
   const app = await NestFactory.create(AppModule, { cors: false });
 
+  // Минимальные security headers без добавления новой зависимости.
+  app.use((req: any, res: any, next: () => void) => {
+    res.removeHeader('X-Powered-By');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+    if (isProduction) {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
+
+  const allowedOrigins = (
+    process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()).filter(Boolean)
+    ?? []
+  );
+
+  // В production не открываем API для произвольных сайтов.
+  // Если CORS_ORIGIN не задан, разрешаем только официальный frontend.
+  const corsOrigins = allowedOrigins.length > 0
+    ? allowedOrigins
+    : isProduction
+      ? ['https://turist-zeta.vercel.app']
+      : true;
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? '*',
+    origin: corsOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.useGlobalPipes(
@@ -28,13 +64,14 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   // eslint-disable-next-line no-console
-  console.log(`ТУРИСТ API запущен: http://localhost:${port}/api/v1`);
-  console.log(`Swagger-документация: http://localhost:${port}/api/docs`);
+  console.log(`ТУРИСТ API запущен на порту ${port}`);
 }
+
 bootstrap();

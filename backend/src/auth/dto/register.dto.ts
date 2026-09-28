@@ -1,6 +1,5 @@
 import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 
-// Список из 20 смайликов, доступных при регистрации (используется и на фронтенде)
 export const ALLOWED_AVATAR_EMOJIS = [
   '🙂', '😎', '🥳', '🤠', '🧗', '🏕️', '⛰️', '🌲', '🦊', '🐺',
   '🦉', '🐻', '🦌', '🐿️', '🍁', '🔥', '🧭', '🎒', '⛺', '🌄',
@@ -19,6 +18,7 @@ export class RegisterDto {
   password: string;
 
   @IsString()
+  @IsIn(['male', 'female'])
   archetype: 'male' | 'female';
 
   @IsOptional()

@@ -19,17 +19,17 @@ export class AuthService {
 
   private async issueTokens(user: { id: string; nickname: string; role: string }) {
     const payload = { sub: user.id, nickname: user.nickname, role: user.role };
+    const secret = process.env.JWT_ACCESS_SECRET ?? 'dev_secret_change_me';
 
     const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.JWT_ACCESS_SECRET ?? 'dev_secret_change_me',
+      secret,
       expiresIn: process.env.JWT_ACCESS_TTL ?? '15m',
     });
 
     const rawRefreshToken = randomUUID() + '.' + randomUUID();
     const refreshTokenHash = await argon2.hash(rawRefreshToken);
-
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 дней, синхронизировано с JWT_REFRESH_TTL по умолчанию
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
     await this.prisma.refreshToken.create({
       data: {
@@ -44,7 +44,6 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const nicknameLower = dto.nickname.toLowerCase();
-
     const existing = await this.prisma.user.findUnique({
       where: { nicknameLower },
     });
@@ -56,7 +55,6 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
-
     const user = await this.prisma.user.create({
       data: {
         nickname: dto.nickname,
@@ -68,7 +66,6 @@ export class AuthService {
       },
       include: { character: true, wallet: true, progress: true },
     });
-
     const tokens = await this.issueTokens(user);
     return { user: this.toPublicUser(user), ...tokens };
   }
@@ -79,7 +76,8 @@ export class AuthService {
       include: { character: true, wallet: true, progress: true },
     });
 
-    if (!user) {
+    // Не раскрываем, существует ли такой пользователь.
+    if (!user || user.status !== 'active') {
       throw new UnauthorizedException({
         code: 'INVALID_CREDENTIALS',
         message: 'Неверный ник или пароль',
@@ -94,13 +92,6 @@ export class AuthService {
       });
     }
 
-    if (user.status === 'banned' || user.status === 'suspended') {
-      throw new UnauthorizedException({
-        code: 'ACCOUNT_RESTRICTED',
-        message: 'Аккаунт временно ограничен',
-      });
-    }
-
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -111,8 +102,13 @@ export class AuthService {
   }
 
   async refresh(rawRefreshToken: string) {
-    // Перебираем активные (не отозванные, не истёкшие) токены — для MVP admissible;
-    // при масштабировании токен можно снабдить префиксом userId для точечного поиска.
+    if (!rawRefreshToken || rawRefreshToken.length > 200) {
+      throw new UnauthorizedException({
+        code: 'INVALID_REFRESH_TOKEN',
+        message: 'Сессия недействительна, требуется повторный вход',
+      });
+    }
+
     const candidates = await this.prisma.refreshToken.findMany({
       where: { revoked: false, expiresAt: { gt: new Date() } },
       include: { user: { include: { character: true, wallet: true, progress: true } } },
@@ -120,19 +116,30 @@ export class AuthService {
 
     for (const candidate of candidates) {
       const matches = await argon2.verify(candidate.tokenHash, rawRefreshToken);
-      if (matches) {
-        // Ротация: старый токен отзывается, выдаётся новая пара
-        await this.prisma.refreshToken.update({
-          where: { id: candidate.id },
-          data: { revoked: true },
+      if (!matches) continue;
+
+      // Атомарная ротация: только один параллельный запрос может "забрать"
+      // конкретный refresh-token. Это закрывает race condition при двойном refresh.
+      const rotated = await this.prisma.refreshToken.updateMany({
+        where: {
+          id: candidate.id,
+          revoked: false,
+          expiresAt: { gt: new Date() },
+        },
+        data: { revoked: true },
+      });
+
+      if (rotated.count !== 1) {
+        throw new UnauthorizedException({
+          code: 'INVALID_REFRESH_TOKEN',
+          message: 'Сессия недействительна, требуется повторный вход',
         });
-        const tokens = await this.issueTokens(candidate.user);
-        return { user: this.toPublicUser(candidate.user), ...tokens };
       }
+
+      const tokens = await this.issueTokens(candidate.user);
+      return { user: this.toPublicUser(candidate.user), ...tokens };
     }
 
-    // Токен не найден среди активных — возможна попытка повторного использования
-    // украденного/уже отозванного токена. В проде: инвалидировать всю цепочку сессий пользователя.
     throw new UnauthorizedException({
       code: 'INVALID_REFRESH_TOKEN',
       message: 'Сессия недействительна, требуется повторный вход',
@@ -153,7 +160,6 @@ export class AuthService {
     if (existing && existing.id !== userId) {
       throw new ConflictException({ code: 'NICKNAME_TAKEN', message: 'Такой ник уже занят, выберите другой' });
     }
-
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { nickname: newNickname, nicknameLower },
@@ -169,12 +175,13 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Текущий пароль неверен' });
     }
-
     const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 
-    // Пароль сменился — на всякий случай завершаем все остальные сессии
-    await this.prisma.refreshToken.updateMany({ where: { userId, revoked: false }, data: { revoked: true } });
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revoked: false },
+      data: { revoked: true },
+    });
 
     return { success: true };
   }
