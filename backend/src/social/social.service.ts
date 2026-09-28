@@ -175,19 +175,11 @@ export class SocialService {
     if (!friend || friend.status !== 'active') {
       throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'Игрок не найден' });
     }
-    const [visits, comments] = await Promise.all([
-      this.prisma.visit.findMany({
-        where: { userId: friendUserId },
-        orderBy: { visitedAt: 'desc' },
-        include: { poi: { include: { category: true } } },
-      }),
-      this.prisma.poiComment.findMany({
-        where: { userId: friendUserId },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        include: { poi: { select: { id: true, title: true } } },
-      }),
-    ]);
+    const visits = await this.prisma.visit.findMany({
+      where: { userId: friendUserId },
+      orderBy: { visitedAt: 'desc' },
+      include: { poi: { include: { category: true } } },
+    });
     const xp = friend.progress?.xp ?? 0;
     const level = resolveLevel(xp).level;
     return {
@@ -203,15 +195,7 @@ export class SocialService {
         title: visit.poi.title,
         category: visit.poi.category.title,
         difficulty: visit.poi.difficulty,
-        note: visit.note,
         visitedAt: visit.visitedAt,
-      })),
-      comments: comments.map((comment) => ({
-        id: comment.id,
-        poiId: comment.poi.id,
-        poiTitle: comment.poi.title,
-        text: comment.text,
-        createdAt: comment.createdAt,
       })),
     };
   }

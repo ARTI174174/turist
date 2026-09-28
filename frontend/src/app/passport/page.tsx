@@ -10,6 +10,8 @@ import { resolveLevel } from '@/lib/level';
 import { api } from '@/lib/api';
 import { Poi } from '@/types';
 import { AvatarImage } from '@/components/character/AvatarImage';
+import { POICard } from '@/components/map/POICard';
+import { ChevronRight } from 'lucide-react';
 
 interface PassportVisit {
   id: string;
@@ -30,6 +32,7 @@ export default function PassportPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const [hydrated, setHydrated] = useState(false);
+  const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function PassportPage() {
 
         <div className="space-y-3">
           {visits.map((v) => (
-            <VisitCard key={v.id} visit={v} />
+            <VisitCard key={v.id} visit={v} onOpen={() => setSelectedPoi(v.poi)} />
           ))}
           {visits.length === 0 && (
             <p className="adventure-card rounded-2xl p-4 text-center text-sm text-stone">
@@ -79,12 +82,13 @@ export default function PassportPage() {
         </div>
       </div>
 
+      {selectedPoi && <POICard poi={selectedPoi} position={null} readOnly onClose={() => setSelectedPoi(null)} />}
       <BottomNav />
     </main>
   );
 }
 
-function VisitCard({ visit }: { visit: PassportVisit }) {
+function VisitCard({ visit, onOpen }: { visit: PassportVisit; onOpen: () => void }) {
   const [note, setNote] = useState(visit.note ?? '');
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -103,7 +107,7 @@ function VisitCard({ visit }: { visit: PassportVisit }) {
 
   return (
     <div className="adventure-card rounded-xl px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
+      <button onClick={onOpen} aria-label={`Открыть ${visit.poi.title} и комментарии`} className="flex w-full items-center justify-between gap-2 rounded-lg text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-parchment" style={{ backgroundColor: visit.poi.category.colorHex }}>
             {DIFFICULTY_LABEL[visit.poi.difficulty] ?? visit.poi.difficulty}
@@ -113,7 +117,8 @@ function VisitCard({ visit }: { visit: PassportVisit }) {
         <span className="whitespace-nowrap font-mono text-[10px] text-stone">
           +{visit.xpAwarded} баллов
         </span>
-      </div>
+        <ChevronRight size={14} className="shrink-0 text-stone/70" />
+      </button>
 
       {editing ? (
         <div className="mt-2">

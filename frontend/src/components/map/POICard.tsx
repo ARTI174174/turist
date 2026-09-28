@@ -20,11 +20,12 @@ interface POICardProps {
   poi: Poi;
   position: GeoPosition | null;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 type FlowState = 'idle' | 'walking' | 'dwelling' | 'ready' | 'submitting' | 'success' | 'review' | 'error';
 
-export function POICard({ poi, position, onClose }: POICardProps) {
+export function POICard({ poi, position, onClose, readOnly = false }: POICardProps) {
   const [flow, setFlow] = useState<FlowState>('idle');
   const [attempt, setAttempt] = useState<VisitAttemptStart | null>(null);
   const [dwellSeconds, setDwellSeconds] = useState(0);
@@ -173,7 +174,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
       <div className="space-y-4 px-4 py-4">
         <div className="flex items-center gap-2 font-mono text-xs text-stone">
           <MapPin size={14} />
-          {distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
+          {readOnly ? 'Вы уже посетили это место' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
           <span className="ml-auto">Открыли: {poi.visitCount} игроков</span>
         </div>
 
@@ -191,7 +192,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
           </div>
         )}
 
-        <ExploreControls
+        {!readOnly && <ExploreControls
           flow={flow}
           withinGeofence={withinGeofence}
           requiredDwell={attempt?.requiredDwellSeconds ?? 20}
@@ -201,7 +202,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
           geofenceRadiusM={poi.geofenceRadiusM}
           onStart={handleStartExplore}
           onComplete={handleComplete}
-        />
+        />}
 
         <section className="border-t border-brass/25 pt-3">
           <h3 className="mb-2 flex items-center gap-2 font-display text-sm text-parchment">
@@ -222,11 +223,11 @@ export function POICard({ poi, position, onClose }: POICardProps) {
             ))}
             {comments.length === 0 && <p className="py-2 text-center text-xs text-stone">Пока нет комментариев — начните обсуждение</p>}
           </div>
-          <form onSubmit={(event) => { event.preventDefault(); void sendComment(); }} className="flex items-center gap-2">
+          {!readOnly && <form onSubmit={(event) => { event.preventDefault(); void sendComment(); }} className="flex items-center gap-2">
             <AvatarImage value={user?.character?.avatarEmoji} className="avatar-portrait h-8 w-8 rounded-full border border-brass/50 p-0.5 text-sm" imageClassName="rounded-full" />
             <input value={commentText} onChange={(event) => setCommentText(event.target.value.slice(0, 500))} maxLength={500} placeholder="Комментарий к месту…" className="min-w-0 flex-1 rounded-full border border-brass/30 bg-black/25 px-3 py-2 text-xs text-parchment placeholder:text-parchment/40 focus:outline-none focus:ring-1 focus:ring-brass/60" />
             <button type="submit" aria-label="Отправить комментарий" disabled={!commentText.trim() || sendingComment} className="rounded-full bg-forest p-2 text-parchment disabled:opacity-40"><Send size={15} /></button>
-          </form>
+          </form>}
           {commentError && <p className="mt-1 text-[10px] text-danger">{commentError}</p>}
         </section>
       </div>

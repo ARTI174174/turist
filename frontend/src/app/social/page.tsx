@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Search, UserPlus, Check, X, MapPin, MessageCircle, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Search, UserPlus, Check, X, MapPin, CalendarDays } from 'lucide-react';
 import { TopHud } from '@/components/hud/TopHud';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { AvatarImage } from '@/components/character/AvatarImage';
@@ -21,8 +21,7 @@ interface FoundUser {
   friendshipStatus: 'pending' | 'accepted' | 'declined' | null;
 }
 interface FriendProfile extends Friend {
-  visitedPlaces: { id: string; poiId: string; title: string; category: string; difficulty: string; note: string | null; visitedAt: string }[];
-  comments: { id: string; poiId: string; poiTitle: string; text: string; createdAt: string }[];
+  visitedPlaces: { id: string; poiId: string; title: string; category: string; difficulty: string; visitedAt: string }[];
 }
 
 export default function SocialPage() {
@@ -120,10 +119,7 @@ function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () 
       <h2 className="mb-2 flex items-center gap-2 font-display text-sm text-ink"><MapPin size={16} /> Паспорт путешественника · {data.visitedPlaces.length}</h2>
       <div className="mb-5 space-y-2">{data.visitedPlaces.map((place) => <article key={place.id} className="adventure-card rounded-xl px-3 py-2.5">
         <div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm text-parchment">{place.title}</p><p className="text-[10px] text-stone">{place.category} · {place.difficulty}</p></div><span className="shrink-0 text-[10px] text-stone">{new Date(place.visitedAt).toLocaleDateString('ru-RU')}</span></div>
-        {place.note && <p className="mt-1 text-xs text-parchment/70">Заметка: {place.note}</p>}
       </article>)}{data.visitedPlaces.length === 0 && <p className="text-xs text-stone">Пока нет посещённых мест.</p>}</div>
-      <h2 className="mb-2 flex items-center gap-2 font-display text-sm text-ink"><MessageCircle size={16} /> Комментарии · {data.comments.length}</h2>
-      <div className="space-y-2">{data.comments.map((comment) => <article key={comment.id} className="adventure-card rounded-xl p-3"><p className="mb-1 text-[10px] text-brass">{comment.poiTitle}</p><p className="text-sm leading-relaxed text-parchment/90">{comment.text}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-stone"><CalendarDays size={11} /> {new Date(comment.createdAt).toLocaleDateString('ru-RU')}</p></article>)}{data.comments.length === 0 && <p className="text-xs text-stone">Пока нет комментариев к точкам.</p>}</div>
     </>}
   </div>;
 }
