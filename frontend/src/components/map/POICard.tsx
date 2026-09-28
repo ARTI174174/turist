@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, MapPin, Sparkles, CheckCircle2, MessageCircle, Send } from 'lucide-react';
+import { X, MapPin, Sparkles, CheckCircle2, MessageCircle, Send, LoaderCircle } from 'lucide-react';
 import { Poi, VisitAttemptStart, VisitCompleteResult } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
 import { api, ApiError } from '@/lib/api';
@@ -20,12 +20,12 @@ interface POICardProps {
   poi: Poi;
   position: GeoPosition | null;
   onClose: () => void;
-  readOnly?: boolean;
+  hideExplore?: boolean;
 }
 
-type FlowState = 'idle' | 'walking' | 'dwelling' | 'ready' | 'submitting' | 'success' | 'review' | 'error';
+type FlowState = 'idle' | 'starting' | 'walking' | 'dwelling' | 'ready' | 'submitting' | 'success' | 'review' | 'error';
 
-export function POICard({ poi, position, onClose, readOnly = false }: POICardProps) {
+export function POICard({ poi, position, onClose, hideExplore = false }: POICardProps) {
   const [flow, setFlow] = useState<FlowState>('idle');
   const [attempt, setAttempt] = useState<VisitAttemptStart | null>(null);
   const [dwellSeconds, setDwellSeconds] = useState(0);
@@ -58,6 +58,7 @@ export function POICard({ poi, position, onClose, readOnly = false }: POICardPro
 
   async function handleStartExplore() {
     if (!position) return;
+    setFlow('starting');
     try {
       setErrorMsg(null);
       const res = await api.post<VisitAttemptStart>('/visits/attempt', {
@@ -174,7 +175,7 @@ export function POICard({ poi, position, onClose, readOnly = false }: POICardPro
       <div className="space-y-4 px-4 py-4">
         <div className="flex items-center gap-2 font-mono text-xs text-stone">
           <MapPin size={14} />
-          {readOnly ? 'Вы уже посетили это место' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
+          {hideExplore ? 'Вы уже посетили это место' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
           <span className="ml-auto">Открыли: {poi.visitCount} игроков</span>
         </div>
 
@@ -192,7 +193,7 @@ export function POICard({ poi, position, onClose, readOnly = false }: POICardPro
           </div>
         )}
 
-        {!readOnly && <ExploreControls
+        {!hideExplore && <ExploreControls
           flow={flow}
           withinGeofence={withinGeofence}
           requiredDwell={attempt?.requiredDwellSeconds ?? 20}
@@ -223,11 +224,11 @@ export function POICard({ poi, position, onClose, readOnly = false }: POICardPro
             ))}
             {comments.length === 0 && <p className="py-2 text-center text-xs text-stone">Пока нет комментариев — начните обсуждение</p>}
           </div>
-          {!readOnly && <form onSubmit={(event) => { event.preventDefault(); void sendComment(); }} className="flex items-center gap-2">
+          <form onSubmit={(event) => { event.preventDefault(); void sendComment(); }} className="flex items-center gap-2">
             <AvatarImage value={user?.character?.avatarEmoji} className="avatar-portrait h-8 w-8 rounded-full border border-brass/50 p-0.5 text-sm" imageClassName="rounded-full" />
             <input value={commentText} onChange={(event) => setCommentText(event.target.value.slice(0, 500))} maxLength={500} placeholder="Комментарий к месту…" className="min-w-0 flex-1 rounded-full border border-brass/30 bg-black/25 px-3 py-2 text-xs text-parchment placeholder:text-parchment/40 focus:outline-none focus:ring-1 focus:ring-brass/60" />
             <button type="submit" aria-label="Отправить комментарий" disabled={!commentText.trim() || sendingComment} className="rounded-full bg-forest p-2 text-parchment disabled:opacity-40"><Send size={15} /></button>
-          </form>}
+          </form>
           {commentError && <p className="mt-1 text-[10px] text-danger">{commentError}</p>}
         </section>
       </div>
@@ -296,6 +297,10 @@ function ExploreControls({
     );
   }
 
+  if (flow === 'starting') {
+    return <div className="flex items-center justify-center gap-2 rounded-2xl border border-brass/25 bg-black/15 p-4 text-center text-sm text-parchment"><LoaderCircle size={18} className="animate-spin text-brass" /> Запускаем исследование — оставайтесь на месте…</div>;
+  }
+
   if (flow === 'idle') {
     return (
       <button
@@ -315,8 +320,8 @@ function ExploreControls({
         <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
           <div className="h-full bg-amber transition-all" style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-center font-mono text-xs text-ink/60">
-          {flow === 'submitting' ? 'Подтверждаем…' : `Оставайтесь на месте: ${dwellSeconds}/${requiredDwell} сек.`}
+        <p className="text-center font-mono text-xs text-parchment/75">
+          {flow === 'submitting' ? 'Сохраняем результат исследования…' : flow === 'walking' ? 'Подойдите ближе к точке, затем оставайтесь на месте.' : `Идёт исследование — оставайтесь на месте: ${dwellSeconds}/${requiredDwell} сек.`}
         </p>
       </div>
     );

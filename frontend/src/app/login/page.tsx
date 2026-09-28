@@ -38,8 +38,8 @@ export default function LoginPage() {
         <p className="mb-8 text-center text-sm text-parchment/65">Открой Челябинскую область заново</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Ник" value={nickname} onChange={setNickname} autoComplete="username" />
-          <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="current-password" />
+          <Field label="Логин (ник)" value={nickname} onChange={setNickname} autoComplete="username" placeholder="Введите логин" />
+          <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="current-password" placeholder="Введите пароль" />
 
           {error && <p className="rounded-xl bg-danger/10 p-3 text-sm text-danger">{error}</p>}
 
@@ -69,18 +69,21 @@ function Field({
   onChange,
   type = 'text',
   autoComplete,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   autoComplete?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-ink/80">{label}</span>
       <input
         type={type}
+        placeholder={placeholder}
         value={value}
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}

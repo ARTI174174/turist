@@ -43,15 +43,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="bg-adventure flex min-h-full flex-col justify-center px-6 py-10">
-      <div className="mx-auto w-full max-w-sm rounded-[30px] border border-brass/60 bg-panel/95 p-5 text-parchment shadow-2xl backdrop-blur">
+    <main className="bg-adventure h-full overflow-y-auto px-4 py-4">
+      <div className="mx-auto my-2 w-full max-w-sm rounded-[30px] border border-brass/60 bg-panel/95 p-4 text-parchment shadow-2xl backdrop-blur sm:my-8 sm:p-5">
         <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-moss-light">Экспедиционный клуб</p>
         <h1 className="mb-1 text-center font-display text-3xl text-parchment">Новый турист</h1>
         <p className="mb-6 text-center text-sm text-parchment/65">Выбери образ и отправляйся исследовать Урал</p>
 
         {step === 1 && (
           <div className="space-y-6">
-            <CharacterPreview archetype={archetype} className="mx-auto h-64 w-64 touch-none" />
+            <CharacterPreview archetype={archetype} className="mx-auto h-48 w-48 touch-none sm:h-64 sm:w-64" />
             <div className="flex gap-3">
               {(['male', 'female'] as const).map((a) => (
                 <button
@@ -120,8 +120,8 @@ export default function RegisterPage() {
 
         {step === 3 && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Field label="Ник" value={nickname} onChange={setNickname} autoComplete="username" hint="3–20 символов, латиница/цифры" />
-            <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Минимум 8 символов" />
+            <Field label="Логин (ник)" value={nickname} onChange={setNickname} autoComplete="username" hint="Придумайте логин: 3–20 символов, латиница или цифры" placeholder="Введите логин" />
+            <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Придумайте пароль (минимум 8 символов)" placeholder="Введите пароль" />
 
             {error && <p className="rounded-xl bg-danger/10 p-3 text-sm text-danger">{error}</p>}
 
@@ -162,6 +162,7 @@ function Field({
   type = 'text',
   autoComplete,
   hint,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -169,12 +170,14 @@ function Field({
   type?: string;
   autoComplete?: string;
   hint?: string;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-ink/80">{label}</span>
       <input
         type={type}
+        placeholder={placeholder}
         value={value}
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}

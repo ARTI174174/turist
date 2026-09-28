@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Search, UserPlus, Check, X, MapPin, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Search, UserPlus, Check, X, MapPin, CalendarDays, ChevronRight } from 'lucide-react';
 import { TopHud } from '@/components/hud/TopHud';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { AvatarImage } from '@/components/character/AvatarImage';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api, ApiError } from '@/lib/api';
+import { Poi } from '@/types';
+import { POICard } from '@/components/map/POICard';
 
 interface Friend {
   id: string; nickname: string; avatarEmoji: string; xp: number; level: number; borderColor: string;
@@ -21,7 +23,7 @@ interface FoundUser {
   friendshipStatus: 'pending' | 'accepted' | 'declined' | null;
 }
 interface FriendProfile extends Friend {
-  visitedPlaces: { id: string; poiId: string; title: string; category: string; difficulty: string; visitedAt: string }[];
+  visitedPlaces: { id: string; poiId: string; title: string; category: string; difficulty: string; visitedAt: string; poi: Poi }[];
 }
 
 export default function SocialPage() {
@@ -103,6 +105,7 @@ function FriendsListView({ onSelectFriend }: { onSelectFriend: (id: string) => v
 }
 
 function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () => void }) {
+  const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
   const { data, isLoading, error } = useQuery<FriendProfile>({
     queryKey: ['social', 'friend-profile', friendId],
     queryFn: () => api.get<FriendProfile>(`/social/friends/${friendId}/profile`),
@@ -117,9 +120,10 @@ function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () 
         <div><h1 className="font-display text-lg text-ink">{data.nickname}</h1><p className="text-xs text-stone">Уровень {data.level} · {data.xp} баллов</p></div>
       </div>
       <h2 className="mb-2 flex items-center gap-2 font-display text-sm text-ink"><MapPin size={16} /> Паспорт путешественника · {data.visitedPlaces.length}</h2>
-      <div className="mb-5 space-y-2">{data.visitedPlaces.map((place) => <article key={place.id} className="adventure-card rounded-xl px-3 py-2.5">
-        <div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm text-parchment">{place.title}</p><p className="text-[10px] text-stone">{place.category} · {place.difficulty}</p></div><span className="shrink-0 text-[10px] text-stone">{new Date(place.visitedAt).toLocaleDateString('ru-RU')}</span></div>
-      </article>)}{data.visitedPlaces.length === 0 && <p className="text-xs text-stone">Пока нет посещённых мест.</p>}</div>
+      <div className="mb-5 space-y-2">{data.visitedPlaces.map((place) => <button key={place.id} onClick={() => setSelectedPoi(place.poi)} aria-label={`Открыть ${place.title} и комментарии`} className="adventure-card flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left">
+        <span className="min-w-0"><span className="block truncate text-sm text-parchment">{place.title}</span><span className="block text-[10px] text-stone">{place.category} · {place.difficulty}</span></span><span className="flex shrink-0 items-center gap-1 text-[10px] text-stone">{new Date(place.visitedAt).toLocaleDateString('ru-RU')}<ChevronRight size={14} /></span>
+      </button>)}{data.visitedPlaces.length === 0 && <p className="text-xs text-stone">Пока нет посещённых мест.</p>}</div>
     </>}
+    {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} />}
   </div>;
 }

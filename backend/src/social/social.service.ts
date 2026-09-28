@@ -196,6 +196,7 @@ export class SocialService {
         category: visit.poi.category.title,
         difficulty: visit.poi.difficulty,
         visitedAt: visit.visitedAt,
+        poi: visit.poi,
       })),
     };
   }

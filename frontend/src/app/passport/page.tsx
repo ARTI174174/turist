@@ -82,7 +82,7 @@ export default function PassportPage() {
         </div>
       </div>
 
-      {selectedPoi && <POICard poi={selectedPoi} position={null} readOnly onClose={() => setSelectedPoi(null)} />}
+      {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} />}
       <BottomNav />
     </main>
   );
