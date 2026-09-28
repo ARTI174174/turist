@@ -1,14 +1,21 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+
+const AVATAR_PRICES: Record<string, number> = {
+  '/assets/avatars/21.jpg': 100,
+  '/assets/avatars/22.jpg': 200,
+};
 
 @Injectable()
 export class AuthService {
@@ -60,11 +67,11 @@ export class AuthService {
         nickname: dto.nickname,
         nicknameLower,
         passwordHash,
-        character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '🙂' } },
+        character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '/assets/avatars/1.jpg' } },
         wallet: { create: { coinsBalance: 0, crystalsBalance: 0 } },
         progress: { create: { xp: 0, rankCode: 'novice' } },
       },
-      include: { character: true, wallet: true, progress: true },
+      include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true },
     });
     const tokens = await this.issueTokens(user);
     return { user: this.toPublicUser(user), ...tokens };
@@ -73,7 +80,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { nicknameLower: dto.nickname.toLowerCase() },
-      include: { character: true, wallet: true, progress: true },
+      include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true },
     });
 
     // Не раскрываем, существует ли такой пользователь.
@@ -111,7 +118,7 @@ export class AuthService {
 
     const candidates = await this.prisma.refreshToken.findMany({
       where: { revoked: false, expiresAt: { gt: new Date() } },
-      include: { user: { include: { character: true, wallet: true, progress: true } } },
+      include: { user: { include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true } } },
     });
 
     for (const candidate of candidates) {
@@ -163,7 +170,7 @@ export class AuthService {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { nickname: newNickname, nicknameLower },
-      include: { character: true, wallet: true, progress: true },
+      include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true },
     });
 
     return this.toPublicUser(user);
@@ -187,19 +194,70 @@ export class AuthService {
   }
 
   async changeAvatar(userId: string, avatarEmoji: string) {
-    const character = await this.prisma.characterProfile.update({
-      where: { userId },
-      data: { avatarEmoji },
-    });
-    return character;
+    const avatarNumber = Number(avatarEmoji.match(/^\/assets\/avatars\/(\d+)\.jpg$/)?.[1]);
+    const price = AVATAR_PRICES[avatarEmoji] ?? 0;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (price > 0) {
+        const alreadyOwned = await tx.userOwnedAvatar.findUnique({
+          where: { userId_avatarNumber: { userId, avatarNumber } },
+        });
+
+        if (!alreadyOwned) {
+          const charged = await tx.wallet.updateMany({
+            where: { userId, crystalsBalance: { gte: price } },
+            data: { crystalsBalance: { decrement: price } },
+          });
+          if (charged.count !== 1) {
+            throw new BadRequestException({
+              code: 'INSUFFICIENT_CRYSTALS',
+              message: `Для этого аватара нужно ${price} 💎`,
+            });
+          }
+
+          const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+          await tx.transaction.create({
+            data: {
+              walletId: wallet.id,
+              type: 'spend',
+              source: 'avatar_purchase',
+              amount: price,
+              currency: 'crystals',
+              metadata: { avatarNumber },
+            },
+          });
+          await tx.userOwnedAvatar.create({ data: { userId, avatarNumber } });
+        }
+      }
+
+      const [character, wallet] = await Promise.all([
+        tx.characterProfile.update({ where: { userId }, data: { avatarEmoji } }),
+        tx.wallet.findUniqueOrThrow({ where: { userId } }),
+      ]);
+      const ownedAvatars = await tx.userOwnedAvatar.findMany({
+        where: { userId },
+        select: { avatarNumber: true },
+      });
+
+      return {
+        character: { ...character, ownedAvatarIds: ownedAvatars.map(({ avatarNumber: id }) => id) },
+        wallet,
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   private toPublicUser(user: any) {
+    const character = user.character
+      ? {
+          ...user.character,
+          ownedAvatarIds: (user.character.ownedAvatars ?? []).map(({ avatarNumber }: { avatarNumber: number }) => avatarNumber),
+        }
+      : null;
     return {
       id: user.id,
       nickname: user.nickname,
       role: user.role,
-      character: user.character,
+      character,
       wallet: user.wallet,
       progress: user.progress,
       createdAt: user.createdAt,

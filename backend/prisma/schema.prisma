@@ -146,13 +146,24 @@ model CharacterProfile {
   id            String    @id @default(uuid())
   userId        String    @unique
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownedAvatars  UserOwnedAvatar[]
   archetype     Archetype @default(male)
-  avatarEmoji   String    @default("🙂") // выбирается при регистрации из готового набора (20 штук)
+  avatarEmoji   String    @default("🙂") // путь к аватару в public/assets/avatars; emoji остаются для старых аккаунтов
   equippedItems Json      @default("{}") // { "top": itemId, "shoes": itemId, ... }
   modelConfig   Json      @default("{}")
   updatedAt     DateTime  @updatedAt
 
   @@map("character_profiles")
+}
+
+model UserOwnedAvatar {
+  userId       String
+  character    CharacterProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  avatarNumber Int
+  purchasedAt  DateTime @default(now())
+
+  @@id([userId, avatarNumber])
+  @@map("user_owned_avatars")
 }
 
 model PoiCategory {

@@ -8,14 +8,15 @@ import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthResponse } from '@/types';
 import { CharacterPreview } from '@/components/character/CharacterPreview';
-import { AVATAR_EMOJIS } from '@/lib/avatars';
+import { FREE_AVATARS } from '@/lib/avatars';
+import { AvatarImage } from '@/components/character/AvatarImage';
 
 export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [archetype, setArchetype] = useState<'male' | 'female'>('male');
-  const [avatarEmoji, setAvatarEmoji] = useState(AVATAR_EMOJIS[0]);
+  const [avatarEmoji, setAvatarEmoji] = useState(FREE_AVATARS[0].src);
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +43,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-full flex-col justify-center bg-topo px-6 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <h1 className="mb-1 font-display text-3xl text-forest">Новый турист</h1>
-        <p className="mb-6 text-sm text-stone">Только ник и пароль — без лишних данных</p>
+    <main className="bg-adventure flex min-h-full flex-col justify-center px-6 py-10">
+      <div className="mx-auto w-full max-w-sm rounded-[30px] border border-brass/60 bg-panel/95 p-5 text-parchment shadow-2xl backdrop-blur">
+        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-moss-light">Экспедиционный клуб</p>
+        <h1 className="mb-1 text-center font-display text-3xl text-parchment">Новый турист</h1>
+        <p className="mb-6 text-center text-sm text-parchment/65">Выбери образ и отправляйся исследовать Урал</p>
 
         {step === 1 && (
           <div className="space-y-6">
@@ -57,7 +59,7 @@ export default function RegisterPage() {
                   onClick={() => setArchetype(a)}
                   className={clsx(
                     'flex-1 rounded-xl border-2 py-3 font-display text-sm',
-                    archetype === a ? 'border-forest bg-forest/10 text-forest' : 'border-stone/30 text-stone',
+                    archetype === a ? 'border-brass bg-moss/20 text-moss-light' : 'border-brass/50 text-parchment/65',
                   )}
                 >
                   {a === 'male' ? 'Парень' : 'Девушка'}
@@ -66,7 +68,7 @@ export default function RegisterPage() {
             </div>
             <button
               onClick={() => setStep(2)}
-              className="w-full rounded-full bg-forest py-3 font-display text-parchment"
+              className="adventure-primary w-full rounded-full py-3 font-display"
             >
               Далее
             </button>
@@ -76,24 +78,25 @@ export default function RegisterPage() {
         {step === 2 && (
           <div className="space-y-6">
             <div className="text-center">
-              <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-forest/10 text-4xl">
-                {avatarEmoji}
+              <div className="avatar-portrait mx-auto mb-3 h-24 w-24 rounded-full border-[3px] border-brass p-1 shadow-xl">
+                <AvatarImage value={avatarEmoji} className="h-full w-full rounded-full" />
               </div>
-              <p className="text-sm text-stone">Выбери аватар — он будет виден друзьям</p>
+              <p className="text-sm text-parchment/70">Выбери аватар — он будет виден друзьям</p>
             </div>
 
             <div className="grid grid-cols-5 gap-2">
-              {AVATAR_EMOJIS.map((emoji) => (
+              {FREE_AVATARS.map((avatar) => (
                 <button
-                  key={emoji}
-                  onClick={() => setAvatarEmoji(emoji)}
+                  key={avatar.id}
+                  onClick={() => setAvatarEmoji(avatar.src)}
                   className={clsx(
-                    'flex aspect-square items-center justify-center rounded-xl border-2 text-xl',
-                    avatarEmoji === emoji ? 'border-forest bg-forest/10' : 'border-stone/20 bg-white/40',
+                    'avatar-tile aspect-square rounded-xl p-0.5 transition-transform hover:scale-105',
+                    avatarEmoji === avatar.src && 'avatar-tile-selected',
                   )}
-                  aria-label={`Выбрать аватар ${emoji}`}
+                  aria-label={`Выбрать аватар ${avatar.id}`}
+                  aria-pressed={avatarEmoji === avatar.src}
                 >
-                  {emoji}
+                  <AvatarImage value={avatar.src} className="h-full w-full rounded-lg" />
                 </button>
               ))}
             </div>
@@ -101,13 +104,13 @@ export default function RegisterPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="rounded-full border border-stone/30 px-5 py-3 font-display text-sm text-ink/70"
+                className="adventure-secondary rounded-full px-5 py-3 font-display text-sm"
               >
                 Назад
               </button>
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 rounded-full bg-forest py-3 font-display text-parchment"
+                className="adventure-primary flex-1 rounded-full py-3 font-display"
               >
                 Далее
               </button>
@@ -126,14 +129,14 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="rounded-full border border-stone/30 px-5 py-3 font-display text-sm text-ink/70"
+                className="adventure-secondary rounded-full px-5 py-3 font-display text-sm"
               >
                 Назад
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 rounded-full bg-forest py-3 font-display text-parchment disabled:opacity-50"
+                className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-50"
               >
                 {loading ? 'Создаём…' : 'Начать путешествие'}
               </button>
@@ -141,9 +144,9 @@ export default function RegisterPage() {
           </form>
         )}
 
-        <p className="mt-6 text-center text-sm text-stone">
+        <p className="mt-6 text-center text-sm text-parchment/60">
           Уже есть аккаунт?{' '}
-          <Link href="/login" className="font-semibold text-amber-dark">
+          <Link href="/login" className="font-semibold text-moss-light">
             Войти
           </Link>
         </p>
@@ -176,7 +179,7 @@ function Field({
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
         required
-        className="w-full rounded-xl border border-stone/30 bg-white/70 px-4 py-3 text-ink outline-none focus:border-forest focus:ring-2 focus:ring-forest/30"
+            className="w-full rounded-xl border border-brass/50 bg-black/25 px-4 py-3 text-parchment outline-none focus:border-moss-light focus:ring-2 focus:ring-moss-light/30"
       />
       {hint && <span className="mt-1 block text-xs text-stone">{hint}</span>}
     </label>

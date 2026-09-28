@@ -16,7 +16,7 @@ export default function QuestsPage() {
   if (!hydrated || !user) return null;
   return <main className="relative h-full w-full overflow-hidden bg-forest-dark">
     <TopHud />
-    <div className="h-full overflow-y-auto bg-topo px-4 pb-28" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}>
+    <div className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}>
       <h1 className="mb-1 font-display text-xl text-ink">Задания</h1>
       <QuestsPanel />
     </div>

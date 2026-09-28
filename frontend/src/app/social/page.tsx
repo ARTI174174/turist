@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Search, Send, UserPlus, Check, X } from 'lucide-react';
 import { TopHud } from '@/components/hud/TopHud';
 import { BottomNav } from '@/components/nav/BottomNav';
+import { AvatarImage } from '@/components/character/AvatarImage';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api, ApiError } from '@/lib/api';
 
@@ -142,7 +143,7 @@ function FriendsListView({
 
   return (
     <div
-      className="h-full overflow-y-auto bg-topo px-4 pb-28"
+      className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
       style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
     >
       <h1 className="mb-4 font-display text-xl text-ink">Друзья</h1>
@@ -167,7 +168,7 @@ function FriendsListView({
           ) : foundUser ? (
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">{foundUser.avatarEmoji}</span>
+                <AvatarImage value={foundUser.avatarEmoji} className="avatar-portrait h-11 w-11 rounded-full border-2 border-brass p-0.5 text-xl" />
                 <div>
                   <p className="text-sm text-ink">{foundUser.nickname}</p>
                   <p className="text-[11px] text-stone">Уровень {foundUser.level}</p>
@@ -202,7 +203,7 @@ function FriendsListView({
             {requests.map((r) => (
               <div key={r.friendshipId} className="flex items-center justify-between rounded-2xl bg-amber/10 p-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{r.avatarEmoji}</span>
+                  <AvatarImage value={r.avatarEmoji} className="avatar-portrait h-10 w-10 rounded-full border-2 border-brass p-0.5 text-lg" />
                   <span className="text-sm text-ink">{r.nickname}</span>
                 </div>
                 <div className="flex gap-2">
@@ -238,10 +239,10 @@ function FriendsListView({
             className="flex w-full items-center gap-3 rounded-2xl bg-white/50 p-3 text-left disabled:opacity-60"
           >
             <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xl"
+              className="avatar-portrait h-12 w-12 shrink-0 rounded-full border-2 p-0.5 text-xl"
               style={{ border: `3px solid ${f.borderColor}` }}
             >
-              {f.avatarEmoji}
+              <AvatarImage value={f.avatarEmoji} className="h-full w-full rounded-full" />
             </div>
             <div className="flex-1">
               <p className="text-sm text-ink">{f.nickname}</p>
@@ -306,7 +307,7 @@ function ChatView({
         <button onClick={onBack} aria-label="Назад к списку друзей" className="text-ink/70">
           <ArrowLeft size={20} />
         </button>
-        <span className="text-2xl">{friend.avatarEmoji}</span>
+        <AvatarImage value={friend.avatarEmoji} className="avatar-portrait h-10 w-10 rounded-full border-2 border-brass p-0.5 text-lg" />
         <p className="font-display text-sm text-ink">{friend.nickname}</p>
       </div>
 

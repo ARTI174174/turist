@@ -8,7 +8,8 @@ import { TopHud } from '@/components/hud/TopHud';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useAuthStore } from '@/store/useAuthStore';
 import { resolveLevel } from '@/lib/level';
-import { AVATAR_EMOJIS } from '@/lib/avatars';
+import { AVATARS } from '@/lib/avatars';
+import { AvatarImage } from '@/components/character/AvatarImage';
 import { api, ApiError } from '@/lib/api';
 import { AuthUser } from '@/types';
 
@@ -45,19 +46,19 @@ export default function ProfilePage() {
       <TopHud />
 
       <div
-        className="h-full overflow-y-auto bg-topo px-4 pb-28"
+        className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
       >
         <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-amber bg-white text-4xl">
-            {user.character?.avatarEmoji ?? '🙂'}
+          <div className="avatar-portrait h-24 w-24 rounded-full border-[3px] border-brass p-1 shadow-xl">
+            <AvatarImage value={user.character?.avatarEmoji} className="h-full w-full rounded-full" />
           </div>
           <p className="font-display text-lg text-ink">{user.nickname}</p>
           <p className="text-xs text-stone">Уровень {level} · {xp} баллов</p>
         </div>
 
-        <AvatarSection currentEmoji={user.character?.avatarEmoji ?? '🙂'} onSaved={(emoji) => {
-          updateUser({ character: { ...user.character, avatarEmoji: emoji } });
+        <AvatarSection currentAvatar={user.character?.avatarEmoji ?? '🙂'} ownedIds={user.character?.ownedAvatarIds ?? []} onSaved={(result) => {
+          updateUser({ character: { ...user.character, ...result.character }, wallet: result.wallet });
         }} />
 
         <NicknameSection currentNickname={user.nickname} onSaved={(u) => updateUser(u)} />
@@ -66,7 +67,7 @@ export default function ProfilePage() {
 
         <button
           onClick={handleLogout}
-          className="mt-8 flex w-full items-center justify-center gap-2 rounded-full border border-danger/40 py-3 font-display text-sm text-danger"
+          className="mt-8 flex w-full items-center justify-center gap-2 rounded-full border border-danger/50 bg-danger/10 py-3 font-display text-sm text-red-300"
         >
           <LogOut size={16} /> Выйти из аккаунта
         </button>
@@ -79,25 +80,25 @@ export default function ProfilePage() {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded-2xl bg-white/50 p-4">
-      <p className="mb-3 font-display text-sm text-ink">{title}</p>
+    <div className="adventure-card mb-4 rounded-2xl p-4">
+      <p className="mb-3 font-display text-sm text-parchment">{title}</p>
       {children}
     </div>
   );
 }
 
-function AvatarSection({ currentEmoji, onSaved }: { currentEmoji: string; onSaved: (emoji: string) => void }) {
-  const [selected, setSelected] = useState(currentEmoji);
+function AvatarSection({ currentAvatar, ownedIds, onSaved }: { currentAvatar: string; ownedIds: number[]; onSaved: (result: { character: Partial<AuthUser['character']>; wallet: AuthUser['wallet'] }) => void }) {
+  const [selected, setSelected] = useState(currentAvatar);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function save() {
-    if (selected === currentEmoji) return;
+    if (selected === currentAvatar) return;
     setSaving(true);
     setMsg(null);
     try {
-      await api.patch('/auth/avatar', { avatarEmoji: selected });
-      onSaved(selected);
+      const result = await api.patch<{ character: AuthUser['character']; wallet: AuthUser['wallet'] }>('/auth/avatar', { avatarEmoji: selected });
+      onSaved(result);
       setMsg('Аватар обновлён');
     } catch (e) {
       setMsg(e instanceof ApiError ? e.message : 'Не удалось сохранить');
@@ -107,28 +108,34 @@ function AvatarSection({ currentEmoji, onSaved }: { currentEmoji: string; onSave
   }
 
   return (
-    <SectionCard title="Сменить аватар">
-      <div className="mb-3 grid grid-cols-5 gap-2">
-        {AVATAR_EMOJIS.map((emoji) => (
+    <SectionCard title="Аватар путешественника">
+      <p className="mb-3 text-xs text-parchment/60">Первые 20 образов бесплатны. Редкие аватары открываются за бриллианты.</p>
+      <div className="mb-3 grid grid-cols-4 gap-2.5">
+        {AVATARS.map((avatar) => {
+          const isOwned = avatar.price === 0 || ownedIds.includes(avatar.id);
+          const isSelected = selected === avatar.src;
+          return (
           <button
-            key={emoji}
-            onClick={() => setSelected(emoji)}
-            className={clsx(
-              'flex aspect-square items-center justify-center rounded-xl border-2 text-lg',
-              selected === emoji ? 'border-forest bg-forest/10' : 'border-stone/20 bg-white/40',
-            )}
+            key={avatar.id}
+            onClick={() => setSelected(avatar.src)}
+            className={clsx('avatar-tile relative aspect-square rounded-xl p-0.5 transition-transform hover:scale-105', isSelected && 'avatar-tile-selected')}
+            aria-label={avatar.price && !isOwned ? `Аватар ${avatar.id}, ${avatar.price} бриллиантов` : `Выбрать аватар ${avatar.id}`}
+            aria-pressed={isSelected}
           >
-            {emoji}
+            <AvatarImage value={avatar.src} className="h-full w-full rounded-lg" />
+            {avatar.price > 0 && !isOwned && <span className="avatar-price">💎 {avatar.price}</span>}
+            {avatar.price > 0 && isOwned && <span className="avatar-owned">✓</span>}
           </button>
-        ))}
+          );
+        })}
       </div>
       {msg && <p className="mb-2 text-xs text-forest">{msg}</p>}
       <button
         onClick={save}
-        disabled={saving || selected === currentEmoji}
-        className="w-full rounded-full bg-forest py-2 text-sm text-parchment disabled:opacity-40"
+        disabled={saving || selected === currentAvatar}
+        className="adventure-primary w-full rounded-full py-3 text-sm disabled:opacity-40"
       >
-        {saving ? 'Сохраняем…' : 'Сохранить аватар'}
+        {saving ? 'Открываем…' : `Выбрать аватар${AVATARS.find((avatar) => avatar.src === selected && avatar.price && !ownedIds.includes(avatar.id)) ? ` за ${AVATARS.find((avatar) => avatar.src === selected)?.price} 💎` : ''}`}
       </button>
     </SectionCard>
   );

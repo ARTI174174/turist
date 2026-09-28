@@ -16,30 +16,29 @@ export function BottomNav() {
   const router = useRouter();
 
   return (
-    <nav
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex items-end justify-around bg-no-repeat pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-4"
-      style={{ backgroundImage: "url('/assets/icons/nav-bar.png')", backgroundSize: '100% 100%', minHeight: 76 }}
-      aria-label="Основная навигация"
-    >
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/70 to-transparent" />
-      {TABS.map(({ href, label, icon, primary }) => {
-        const active = pathname === href;
-        return (
-          <button
-            key={href}
-            onClick={() => router.push(href)}
-            className={clsx(
-              'relative z-10 flex min-w-[56px] flex-col items-center gap-1 text-[10px] transition-transform',
-              primary && '-translate-y-3',
-              active ? 'text-amber' : 'text-parchment/70',
-            )}
-            aria-current={active ? 'page' : undefined}
-          >
-            <img src={icon} alt="" className={primary ? 'h-12 w-12' : 'h-7 w-7'} />
-            {label}
-          </button>
-        );
-      })}
+    <nav className="bottom-nav" aria-label="Основная навигация">
+      <div className="bottom-nav-plaque">
+        {TABS.map(({ href, label, icon, primary }) => {
+          const active = pathname === href;
+          return (
+            <button
+              key={href}
+              onClick={() => router.push(href)}
+              className={clsx('bottom-nav-item', primary && 'bottom-nav-item-primary', active && 'bottom-nav-item-active')}
+              aria-current={active ? 'page' : undefined}
+            >
+              {primary ? (
+                <span className="bottom-nav-center">
+                  <img src={icon} alt="" />
+                </span>
+              ) : (
+                <img src={icon} alt="" className="bottom-nav-icon" />
+              )}
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

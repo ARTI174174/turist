@@ -52,11 +52,11 @@ export default function PassportPage() {
       <TopHud />
 
       <div
-        className="h-full overflow-y-auto bg-topo px-4 pb-28"
+        className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
       >
         <div className="mb-5 flex items-center gap-3">
-          <div className="passport-stamp h-14 w-14 shrink-0 text-sm font-display">
+          <div className="passport-stamp h-14 w-14 shrink-0 border-brass text-sm font-display text-brass">
             {user.nickname.slice(0, 2).toUpperCase()}
           </div>
           <div>
@@ -73,7 +73,7 @@ export default function PassportPage() {
             <VisitCard key={v.id} visit={v} />
           ))}
           {visits.length === 0 && (
-            <p className="rounded-2xl bg-white/40 p-4 text-center text-sm text-stone">
+            <p className="adventure-card rounded-2xl p-4 text-center text-sm text-stone">
               Пока ни одного места — отправляйся в поход!
             </p>
           )}
@@ -103,7 +103,7 @@ function VisitCard({ visit }: { visit: PassportVisit }) {
   }
 
   return (
-    <div className="rounded-2xl bg-white/50 p-4">
+    <div className="adventure-card rounded-2xl p-4">
       <div className="mb-1 flex items-start justify-between gap-2">
         <div>
           <span

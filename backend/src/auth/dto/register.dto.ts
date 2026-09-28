@@ -1,9 +1,12 @@
 import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 
-export const ALLOWED_AVATAR_EMOJIS = [
+export const LEGACY_AVATAR_EMOJIS = [
   '🙂', '😎', '🥳', '🤠', '🧗', '🏕️', '⛰️', '🌲', '🦊', '🐺',
   '🦉', '🐻', '🦌', '🐿️', '🍁', '🔥', '🧭', '🎒', '⛺', '🌄',
 ] as const;
+
+export const FREE_AVATARS = Array.from({ length: 20 }, (_, index) => `/assets/avatars/${index + 1}.jpg`);
+export const PAID_AVATARS = ['/assets/avatars/21.jpg', '/assets/avatars/22.jpg'] as const;
 
 export class RegisterDto {
   @IsString()
@@ -23,6 +26,6 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(ALLOWED_AVATAR_EMOJIS as unknown as string[], { message: 'Недопустимый аватар' })
+  @IsIn([...FREE_AVATARS, ...LEGACY_AVATAR_EMOJIS], { message: 'Недопустимый аватар' })
   avatarEmoji?: string;
 }

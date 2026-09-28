@@ -122,11 +122,11 @@ export function POICard({ poi, position, onClose }: POICardProps) {
 
   return (
     <div
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[75vh] overflow-y-auto rounded-t-3xl bg-topo shadow-2xl"
+      className="bg-adventure pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[75vh] overflow-y-auto rounded-t-3xl border border-brass/50 shadow-2xl"
       role="dialog"
       aria-label={poi.title}
     >
-      <div className="sticky top-0 flex items-center justify-between border-b border-stone/20 bg-parchment/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 flex items-center justify-between border-b border-brass/40 bg-panel/95 px-4 py-3 backdrop-blur">
         <div>
           <span
             className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-parchment"
@@ -136,7 +136,7 @@ export function POICard({ poi, position, onClose }: POICardProps) {
           </span>
           <h2 className="font-display text-lg text-ink">{poi.title}</h2>
         </div>
-        <button onClick={onClose} aria-label="Закрыть" className="rounded-full p-2 text-ink/60 hover:bg-black/5">
+        <button onClick={onClose} aria-label="Закрыть" className="rounded-full p-2 text-parchment/60 hover:bg-white/10">
           <X size={20} />
         </button>
       </div>

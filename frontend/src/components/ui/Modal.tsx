@@ -20,12 +20,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-topo sm:rounded-3xl"
+        className="bg-adventure flex max-h-[85vh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl border border-brass/50 shadow-2xl sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-stone/20 bg-parchment/95 px-4 py-3">
-          <h2 className="font-display text-lg text-ink">{title}</h2>
-          <button onClick={onClose} aria-label="Закрыть" className="rounded-full p-1.5 text-ink/60 hover:bg-black/5">
+        <div className="flex shrink-0 items-center justify-between border-b border-brass/40 bg-panel/95 px-4 py-3">
+          <h2 className="font-display text-lg text-parchment">{title}</h2>
+          <button onClick={onClose} aria-label="Закрыть" className="rounded-full p-1.5 text-parchment/60 hover:bg-white/10">
             <X size={20} />
           </button>
         </div>

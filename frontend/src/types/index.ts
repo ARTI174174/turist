@@ -53,6 +53,7 @@ export interface CharacterProfile {
   id: string;
   archetype: 'male' | 'female';
   avatarEmoji: string;
+  ownedAvatarIds?: number[];
   equippedItems: Record<string, string>;
 }
 

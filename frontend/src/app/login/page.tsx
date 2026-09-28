@@ -31,10 +31,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-full flex-col justify-center bg-topo px-6 py-10">
-      <div className="mx-auto w-full max-w-sm">
-        <h1 className="mb-1 font-display text-3xl text-forest">ТУРИСТ</h1>
-        <p className="mb-8 text-sm text-stone">Открой Челябинскую область заново</p>
+    <main className="bg-adventure flex min-h-full flex-col justify-center px-6 py-10">
+      <div className="mx-auto w-full max-w-sm rounded-[30px] border border-brass/60 bg-panel/95 p-6 shadow-2xl backdrop-blur">
+        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-moss-light">Экспедиционный клуб</p>
+        <h1 className="mb-1 text-center font-display text-3xl text-parchment">ТУРИСТ</h1>
+        <p className="mb-8 text-center text-sm text-parchment/65">Открой Челябинскую область заново</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field label="Ник" value={nickname} onChange={setNickname} autoComplete="username" />
@@ -45,15 +46,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-forest py-3 font-display text-parchment disabled:opacity-50"
+            className="adventure-primary w-full rounded-full py-3 font-display disabled:opacity-50"
           >
             {loading ? 'Входим…' : 'Войти'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-stone">
+        <p className="mt-6 text-center text-sm text-parchment/60">
           Ещё нет аккаунта?{' '}
-          <Link href="/register" className="font-semibold text-amber-dark">
+          <Link href="/register" className="font-semibold text-moss-light">
             Зарегистрироваться
           </Link>
         </p>
@@ -84,7 +85,7 @@ function Field({
         autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
         required
-        className="w-full rounded-xl border border-stone/30 bg-white/70 px-4 py-3 text-ink outline-none focus:border-forest focus:ring-2 focus:ring-forest/30"
+        className="w-full rounded-xl border border-brass/50 bg-black/25 px-4 py-3 text-parchment outline-none focus:border-moss-light focus:ring-2 focus:ring-moss-light/30"
       />
     </label>
   );

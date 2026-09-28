@@ -12,6 +12,9 @@ module.exports = {
           dark: '#12291F',
         },
         moss: '#4C7A5E',
+        'moss-light': '#A9BD6B',
+        brass: '#77744B',
+        panel: '#20231F',
         parchment: '#EFE8D8',   // фон карточек — оттенок старой топокарты
         parchmentDark: '#E2D8C0',
         amber: {

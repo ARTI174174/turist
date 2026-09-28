@@ -1,5 +1,5 @@
 import { IsIn, IsString, Length, Matches } from 'class-validator';
-import { ALLOWED_AVATAR_EMOJIS } from './register.dto';
+import { FREE_AVATARS, LEGACY_AVATAR_EMOJIS, PAID_AVATARS } from './register.dto';
 
 export class ChangeNicknameDto {
   @IsString()
@@ -21,6 +21,6 @@ export class ChangePasswordDto {
 
 export class ChangeAvatarDto {
   @IsString()
-  @IsIn(ALLOWED_AVATAR_EMOJIS as unknown as string[], { message: 'Недопустимый аватар' })
+  @IsIn([...FREE_AVATARS, ...PAID_AVATARS, ...LEGACY_AVATAR_EMOJIS], { message: 'Недопустимый аватар' })
   avatarEmoji: string;
 }
