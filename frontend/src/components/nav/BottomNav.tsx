@@ -17,10 +17,11 @@ export function BottomNav() {
 
   return (
     <nav
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex items-end justify-around bg-contain bg-bottom bg-no-repeat pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-4"
-      style={{ backgroundImage: "url('/assets/icons/nav-bar.png')" }}
+      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex items-end justify-around bg-no-repeat pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-4"
+      style={{ backgroundImage: "url('/assets/icons/nav-bar.png')", backgroundSize: '100% 100%', minHeight: 76 }}
       aria-label="Основная навигация"
     >
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/70 to-transparent" />
       {TABS.map(({ href, label, icon, primary }) => {
         const active = pathname === href;
         return (
@@ -28,7 +29,7 @@ export function BottomNav() {
             key={href}
             onClick={() => router.push(href)}
             className={clsx(
-              'flex min-w-[56px] flex-col items-center gap-1 text-[10px] transition-transform',
+              'relative z-10 flex min-w-[56px] flex-col items-center gap-1 text-[10px] transition-transform',
               primary && '-translate-y-3',
               active ? 'text-amber' : 'text-parchment/70',
             )}

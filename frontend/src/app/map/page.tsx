@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapView, MapViewHandle } from '@/components/map/MapView';
 import { POICard } from '@/components/map/POICard';
 import { TopHud } from '@/components/hud/TopHud';
+import { QuestsShopLauncher } from '@/components/hud/QuestsShopLauncher';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -83,6 +84,7 @@ export default function MapPage() {
         onSelectCrystal={handleSelectCrystal}
       />
       <TopHud />
+      {!selectedPoi && <QuestsShopLauncher />}
 
       {geoError && (
         <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}>

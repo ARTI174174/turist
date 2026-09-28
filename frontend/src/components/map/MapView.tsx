@@ -231,6 +231,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!map || !mapReady || !position) return;
 
     if (!userMarkerRef.current) {
+      // el — контейнер ТОЛЬКО для MapLibre (он пишет сюда translate для позиции)
       const el = document.createElement('div');
       el.style.width = '80px';
       el.style.height = '80px';

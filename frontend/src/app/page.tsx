@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Volume2, VolumeX } from 'lucide-react';
 import { TopHud } from '@/components/hud/TopHud';
+import { QuestsShopLauncher } from '@/components/hud/QuestsShopLauncher';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -50,6 +51,7 @@ export default function CampPage() {
       <div className="absolute inset-0 bg-black/10" />
 
       <TopHud />
+      <QuestsShopLauncher />
 
       <button
         onClick={toggleSound}
@@ -59,13 +61,6 @@ export default function CampPage() {
       >
         {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
-
-      <div className="absolute inset-x-0 bottom-24 px-6 text-center">
-        <h1 className="font-display text-2xl text-parchment drop-shadow">Твой лагерь</h1>
-        <p className="mt-1 text-sm text-parchment/80 drop-shadow">
-          Здесь появится твоя стоянка — обустраивай её через Магазин
-        </p>
-      </div>
 
       <BottomNav />
     </main>
