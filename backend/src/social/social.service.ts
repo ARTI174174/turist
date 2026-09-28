@@ -166,6 +166,56 @@ export class SocialService {
     }));
   }
 
+  async getFriendProfile(userId: string, friendUserId: string) {
+    await this.assertAreFriends(userId, friendUserId);
+    const friend = await this.prisma.user.findUnique({
+      where: { id: friendUserId },
+      include: { character: true, progress: true },
+    });
+    if (!friend || friend.status !== 'active') {
+      throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'Игрок не найден' });
+    }
+    const [visits, comments] = await Promise.all([
+      this.prisma.visit.findMany({
+        where: { userId: friendUserId },
+        orderBy: { visitedAt: 'desc' },
+        include: { poi: { include: { category: true } } },
+      }),
+      this.prisma.poiComment.findMany({
+        where: { userId: friendUserId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: { poi: { select: { id: true, title: true } } },
+      }),
+    ]);
+    const xp = friend.progress?.xp ?? 0;
+    const level = resolveLevel(xp).level;
+    return {
+      id: friend.id,
+      nickname: friend.nickname,
+      avatarEmoji: friend.character?.avatarEmoji ?? '🙂',
+      xp,
+      level,
+      borderColor: levelBorderColor(level),
+      visitedPlaces: visits.map((visit) => ({
+        id: visit.id,
+        poiId: visit.poiId,
+        title: visit.poi.title,
+        category: visit.poi.category.title,
+        difficulty: visit.poi.difficulty,
+        note: visit.note,
+        visitedAt: visit.visitedAt,
+      })),
+      comments: comments.map((comment) => ({
+        id: comment.id,
+        poiId: comment.poi.id,
+        poiTitle: comment.poi.title,
+        text: comment.text,
+        createdAt: comment.createdAt,
+      })),
+    };
+  }
+
   private async assertAreFriends(userId: string, otherUserId: string) {
     const friendship = await this.prisma.friendship.findFirst({
       where: {
@@ -177,104 +227,7 @@ export class SocialService {
       },
     });
     if (!friendship) {
-      throw new ForbiddenException({ code: 'NOT_FRIENDS', message: 'Переписка доступна только с друзьями' });
+      throw new ForbiddenException({ code: 'NOT_FRIENDS', message: 'Профиль доступен только друзьям' });
     }
-  }
-
-  /** Находит существующую личную комнату с другом либо создаёт новую. */
-  async getOrCreateDirectRoom(userId: string, friendUserId: string) {
-    await this.assertAreFriends(userId, friendUserId);
-
-    // Ищем среди комнат текущего пользователя ту, где участвует именно этот друг
-    const rooms = await this.prisma.chatParticipant.findMany({
-      where: { userId },
-      include: { chatRoom: { include: { participants: true } } },
-    });
-
-    for (const r of rooms) {
-      const participantIds = r.chatRoom.participants.map((p) => p.userId);
-      if (participantIds.includes(friendUserId) && participantIds.length === 2) {
-        return r.chatRoom;
-      }
-    }
-
-    return this.prisma.chatRoom.create({
-      data: {
-        participants: {
-          create: [{ userId }, { userId: friendUserId }],
-        },
-      },
-      include: { participants: true },
-    });
-  }
-
-  async listChatRooms(userId: string) {
-    const participations = await this.prisma.chatParticipant.findMany({
-      where: { userId },
-      include: {
-        chatRoom: {
-          include: {
-            participants: { include: { user: { include: { character: true } } } },
-            messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-          },
-        },
-      },
-    });
-
-    return participations
-      .map((p) => {
-        const otherParticipant = p.chatRoom.participants.find((pp) => pp.userId !== userId);
-        const lastMessage = p.chatRoom.messages[0] ?? null;
-        return {
-          roomId: p.chatRoom.id,
-          otherUser: otherParticipant
-            ? {
-                id: otherParticipant.userId,
-                nickname: otherParticipant.user.nickname,
-                avatarEmoji: otherParticipant.user.character?.avatarEmoji ?? '🙂',
-              }
-            : null,
-          lastMessage: lastMessage
-            ? { content: lastMessage.content, createdAt: lastMessage.createdAt, senderId: lastMessage.senderId }
-            : null,
-        };
-      })
-      .sort((a, b) => {
-        const at = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
-        const bt = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
-        return bt - at;
-      });
-  }
-
-  private async assertRoomAccess(userId: string, roomId: string) {
-    const participant = await this.prisma.chatParticipant.findUnique({
-      where: { chatRoomId_userId: { chatRoomId: roomId, userId } },
-    });
-    if (!participant) {
-      throw new ForbiddenException({ code: 'NOT_IN_ROOM', message: 'Нет доступа к этому чату' });
-    }
-  }
-
-  async listMessages(userId: string, roomId: string) {
-    await this.assertRoomAccess(userId, roomId);
-
-    await this.prisma.chatParticipant.update({
-      where: { chatRoomId_userId: { chatRoomId: roomId, userId } },
-      data: { lastReadAt: new Date() },
-    });
-
-    return this.prisma.message.findMany({
-      where: { chatRoomId: roomId },
-      orderBy: { createdAt: 'asc' },
-      take: 200,
-    });
-  }
-
-  async sendMessage(userId: string, roomId: string, content: string) {
-    await this.assertRoomAccess(userId, roomId);
-
-    return this.prisma.message.create({
-      data: { chatRoomId: roomId, senderId: userId, content },
-    });
   }
 }

@@ -124,6 +124,7 @@ model User {
   friendshipsReceived Friendship[]        @relation("FriendshipAddressee")
   chatParticipations  ChatParticipant[]
   messagesSent        Message[]
+  poiComments         PoiComment[]
 
   @@map("users")
 }
@@ -206,6 +207,7 @@ model Poi {
   visits          Visit[]
   routeStops      RouteStop[]
   collectionItems CollectionItem[]
+  comments        PoiComment[]
 
   @@index([regionCode])
   @@map("poi")
@@ -222,6 +224,20 @@ model PoiMedia {
   createdAt         DateTime          @default(now())
 
   @@map("poi_media")
+}
+
+model PoiComment {
+  id        String   @id @default(uuid())
+  poiId     String
+  poi       Poi      @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  @@index([poiId, createdAt])
+  @@index([userId, createdAt])
+  @@map("poi_comments")
 }
 
 model VisitAttempt {

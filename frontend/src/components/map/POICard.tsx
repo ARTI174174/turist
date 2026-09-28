@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { X, MapPin, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { X, MapPin, Sparkles, CheckCircle2, MessageCircle, Send } from 'lucide-react';
 import { Poi, VisitAttemptStart, VisitCompleteResult } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
 import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AvatarImage } from '@/components/character/AvatarImage';
+
+interface PoiComment {
+  id: string;
+  text: string;
+  createdAt: string;
+  author: { id: string; nickname: string; avatarEmoji: string; level: number; borderColor: string };
+}
 
 interface POICardProps {
   poi: Poi;
@@ -27,6 +35,13 @@ export function POICard({ poi, position, onClose }: POICardProps) {
   const updateUser = useAuthStore((s) => s.updateUser);
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const [commentText, setCommentText] = useState('');
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [sendingComment, setSendingComment] = useState(false);
+  const { data: comments = [] } = useQuery<PoiComment[]>({
+    queryKey: ['poi', poi.id, 'comments'],
+    queryFn: () => api.get<PoiComment[]>(`/poi/${poi.id}/comments`),
+  });
 
   // Держим актуальную позицию в ref, чтобы обновления GPS (которые приходят очень
   // часто) не пересоздавали интервал heartbeat ниже — раньше именно из-за этого
@@ -118,7 +133,21 @@ export function POICard({ poi, position, onClose }: POICardProps) {
     }
   }
 
-  const alreadyKnownAsVisited = flow === 'success';
+  async function sendComment() {
+    const text = commentText.trim();
+    if (!text || sendingComment) return;
+    setSendingComment(true);
+    setCommentError(null);
+    try {
+      await api.post(`/poi/${poi.id}/comments`, { text });
+      setCommentText('');
+      await queryClient.invalidateQueries({ queryKey: ['poi', poi.id, 'comments'] });
+    } catch (error) {
+      setCommentError(error instanceof ApiError ? error.message : 'Не удалось отправить комментарий');
+    } finally {
+      setSendingComment(false);
+    }
+  }
 
   return (
     <div
@@ -149,13 +178,13 @@ export function POICard({ poi, position, onClose }: POICardProps) {
         </div>
 
         {poi.descriptionHistory && (
-          <p className="text-sm leading-relaxed text-ink/80">{poi.descriptionHistory}</p>
+          <p className="text-sm leading-relaxed text-parchment/90">{poi.descriptionHistory}</p>
         )}
 
         {poi.interestingFacts?.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {poi.interestingFacts.map((fact, i) => (
-              <span key={i} className="rounded-stamp border border-stone/30 bg-white/40 px-2 py-1 text-xs text-ink/70">
+            <span key={i} className="rounded-stamp border border-brass/30 bg-white/5 px-2 py-1 text-xs text-parchment/85">
                 {fact}
               </span>
             ))}
@@ -173,6 +202,33 @@ export function POICard({ poi, position, onClose }: POICardProps) {
           onStart={handleStartExplore}
           onComplete={handleComplete}
         />
+
+        <section className="border-t border-brass/25 pt-3">
+          <h3 className="mb-2 flex items-center gap-2 font-display text-sm text-parchment">
+            <MessageCircle size={16} className="text-brass" /> Обсуждение <span className="font-mono text-[10px] text-stone">{comments.length}</span>
+          </h3>
+          <div className="mb-3 max-h-36 space-y-2 overflow-y-auto">
+            {comments.map((comment) => (
+              <article key={comment.id} className="flex gap-2 rounded-xl border border-brass/15 bg-black/15 p-2">
+                <AvatarImage value={comment.author.avatarEmoji} className="avatar-portrait h-8 w-8 rounded-full border-2 p-0.5 text-sm" imageClassName="rounded-full" />
+                <div className="min-w-0 flex-1">
+                  <p className="mb-0.5 flex items-center gap-1.5 text-[10px] text-parchment/70">
+                    <span className="truncate font-semibold text-parchment">{comment.author.nickname}</span>
+                    <span className="shrink-0 rounded-full px-1.5 py-0.5 font-mono" style={{ color: comment.author.borderColor, backgroundColor: `${comment.author.borderColor}20` }}>ур. {comment.author.level}</span>
+                  </p>
+                  <p className="break-words text-xs leading-relaxed text-parchment/90">{comment.text}</p>
+                </div>
+              </article>
+            ))}
+            {comments.length === 0 && <p className="py-2 text-center text-xs text-stone">Пока нет комментариев — начните обсуждение</p>}
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void sendComment(); }} className="flex items-center gap-2">
+            <AvatarImage value={user?.character?.avatarEmoji} className="avatar-portrait h-8 w-8 rounded-full border border-brass/50 p-0.5 text-sm" imageClassName="rounded-full" />
+            <input value={commentText} onChange={(event) => setCommentText(event.target.value.slice(0, 500))} maxLength={500} placeholder="Комментарий к месту…" className="min-w-0 flex-1 rounded-full border border-brass/30 bg-black/25 px-3 py-2 text-xs text-parchment placeholder:text-parchment/40 focus:outline-none focus:ring-1 focus:ring-brass/60" />
+            <button type="submit" aria-label="Отправить комментарий" disabled={!commentText.trim() || sendingComment} className="rounded-full bg-forest p-2 text-parchment disabled:opacity-40"><Send size={15} /></button>
+          </form>
+          {commentError && <p className="mt-1 text-[10px] text-danger">{commentError}</p>}
+        </section>
       </div>
     </div>
   );

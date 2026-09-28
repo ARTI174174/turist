@@ -16,7 +16,8 @@ body {
 }
 
 body {
-  @apply bg-forest-dark text-ink font-body;
+  @apply text-ink font-body;
+  background-color: #080b08;
 }
 
 /* Карта заполняет свой контейнер (телефонную рамку), а не весь физический экран —
@@ -40,7 +41,7 @@ body {
   body {
     display: flex;
     justify-content: center;
-    background: #0b120d;
+  background: #080b08;
   }
   .phone-frame {
     width: 430px;
@@ -174,9 +175,9 @@ body {
   z-index: -1;
   inset-inline: 0;
   bottom: 0;
-  height: 230px;
+  height: 178px;
   content: '';
-  background: linear-gradient(to top, #080b08 0%, rgba(8, 13, 9, .96) 20%, rgba(14, 30, 19, .78) 53%, rgba(14, 30, 19, 0) 100%);
+  background: linear-gradient(to top, #080b08 0%, rgba(8, 13, 9, .98) 24%, rgba(14, 30, 19, .82) 52%, rgba(14, 30, 19, 0) 100%);
   pointer-events: none;
 }
 .bottom-nav-plaque {
@@ -205,12 +206,18 @@ body {
   color: rgba(242, 237, 222, .68);
   font: 600 10px/1.15 var(--font-body);
   transition: color .18s ease, transform .18s ease;
+  appearance: none;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+  outline: none;
 }
 .bottom-nav-item > span:last-child { white-space: nowrap; }
 .bottom-nav-icon { width: 25px; height: 25px; object-fit: contain; opacity: .82; }
 .bottom-nav-item-active { color: #d8cd96; }
 .bottom-nav-item-active .bottom-nav-icon { opacity: 1; }
 .bottom-nav-item-primary { transform: translateY(-14px); color: #fff9e8; }
+.bottom-nav-item:focus-visible { outline: 2px solid rgba(216, 205, 150, .85); outline-offset: 2px; border-radius: 24px; }
 .bottom-nav-center {
   display: flex;
   width: 68px;

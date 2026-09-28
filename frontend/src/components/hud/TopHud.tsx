@@ -7,14 +7,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { resolveLevel } from '@/lib/level';
 import { api } from '@/lib/api';
 
-export function TopHud() {
+export function TopHud({ showNotifications = true }: { showNotifications?: boolean }) {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
 
   const { data } = useQuery<{ count: number }>({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => api.get<{ count: number }>('/notifications/unread-count'),
-    enabled: !!user,
+    enabled: !!user && showNotifications,
     refetchInterval: 20_000,
   });
   const unreadCount = data?.count ?? 0;
@@ -55,7 +55,7 @@ export function TopHud() {
             <img src="/assets/icons/diamond.png" alt="" className="h-4 w-4" />
             <span className="font-mono text-xs text-parchment">{user.wallet?.crystalsBalance ?? 0}</span>
           </div>
-          <button
+          {showNotifications && <button
             onClick={() => router.push('/social')}
             aria-label="Уведомления"
             className="hud-panel relative rounded-full p-2 text-parchment shadow-lg backdrop-blur"
@@ -66,7 +66,7 @@ export function TopHud() {
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
-          </button>
+          </button>}
         </div>
       </div>
 

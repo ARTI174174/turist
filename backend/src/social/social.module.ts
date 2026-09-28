@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Module, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SocialService } from './social.service';
-import { SendFriendRequestDto, SendMessageDto } from './dto/social.dto';
+import { SendFriendRequestDto } from './dto/social.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../common/decorators/current-user.decorator';
 
@@ -38,34 +38,16 @@ class SocialController {
     return this.socialService.listFriends(user.userId);
   }
 
+  @Get('friends/:friendUserId/profile')
+  friendProfile(@CurrentUser() user: CurrentUserPayload, @Param('friendUserId') friendUserId: string) {
+    return this.socialService.getFriendProfile(user.userId, friendUserId);
+  }
+
   @Get('friends/requests')
   listRequests(@CurrentUser() user: CurrentUserPayload) {
     return this.socialService.listIncomingRequests(user.userId);
   }
 
-  @Post('chat/rooms/:friendUserId')
-  getOrCreateRoom(@CurrentUser() user: CurrentUserPayload, @Param('friendUserId') friendUserId: string) {
-    return this.socialService.getOrCreateDirectRoom(user.userId, friendUserId);
-  }
-
-  @Get('chat/rooms')
-  listRooms(@CurrentUser() user: CurrentUserPayload) {
-    return this.socialService.listChatRooms(user.userId);
-  }
-
-  @Get('chat/rooms/:roomId/messages')
-  listMessages(@CurrentUser() user: CurrentUserPayload, @Param('roomId') roomId: string) {
-    return this.socialService.listMessages(user.userId, roomId);
-  }
-
-  @Post('chat/rooms/:roomId/messages')
-  sendMessage(
-    @CurrentUser() user: CurrentUserPayload,
-    @Param('roomId') roomId: string,
-    @Body() dto: SendMessageDto,
-  ) {
-    return this.socialService.sendMessage(user.userId, roomId, dto.content);
-  }
 }
 
 @Module({

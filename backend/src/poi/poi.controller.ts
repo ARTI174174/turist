@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PoiService } from './poi.service';
 import { QueryPoiDto } from './dto/query-poi.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { CreatePoiCommentDto } from './dto/create-poi-comment.dto';
 
 @ApiTags('poi')
 @Controller('poi')
@@ -42,5 +43,21 @@ export class PoiController {
   @Get(':id')
   findById(@Param('id') id: string) {
     return this.poiService.findById(id);
+  }
+
+  @Get(':id/comments')
+  @UseGuards(JwtAuthGuard)
+  listComments(@Param('id') id: string) {
+    return this.poiService.listComments(id);
+  }
+
+  @Post(':id/comments')
+  @UseGuards(JwtAuthGuard)
+  createComment(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: CreatePoiCommentDto,
+  ) {
+    return this.poiService.createComment(id, user.userId, dto.text);
   }
 }

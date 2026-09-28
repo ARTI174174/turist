@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { QueryPoiDto } from './dto/query-poi.dto';
 import { haversineDistanceMeters, parseBbox } from '../common/geo/geo.util';
+import { levelBorderColor, resolveLevel } from '../progression/progression.service';
 
 const SECRET_UNLOCK_XP_THRESHOLD = 10000; // порог способности «Опытный турист», см. SRS п.6.2
 
@@ -91,5 +92,46 @@ export class PoiService {
 
   async listCategories() {
     return this.prisma.poiCategory.findMany();
+  }
+
+  async listComments(poiId: string) {
+    const poi = await this.prisma.poi.findUnique({ where: { id: poiId }, select: { id: true } });
+    if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    const rows = await this.prisma.poiComment.findMany({
+      where: { poiId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { user: { include: { character: true, progress: true } } },
+    });
+    return rows.map(({ user, ...comment }) => {
+      const level = resolveLevel(user.progress?.xp ?? 0).level;
+      return {
+        ...comment,
+        author: {
+          id: user.id,
+          nickname: user.nickname,
+          avatarEmoji: user.character?.avatarEmoji ?? '🙂',
+          level,
+          borderColor: levelBorderColor(level),
+        },
+      };
+    });
+  }
+
+  async createComment(poiId: string, userId: string, text: string) {
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      throw new BadRequestException({ code: 'COMMENT_EMPTY', message: 'Напишите текст комментария' });
+    }
+    const poi = await this.prisma.poi.findUnique({ where: { id: poiId }, select: { id: true } });
+    if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    return this.prisma.poiComment.create({
+      data: { poiId, userId, text: normalizedText },
+      include: { user: { include: { character: true, progress: true } } },
+    }).then((comment) => {
+      const level = resolveLevel(comment.user.progress?.xp ?? 0).level;
+      const { user, ...rest } = comment;
+      return { ...rest, author: { id: user.id, nickname: user.nickname, avatarEmoji: user.character?.avatarEmoji ?? '🙂', level, borderColor: levelBorderColor(level) } };
+    });
   }
 }

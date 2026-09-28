@@ -104,13 +104,13 @@ export default function MapPage() {
 
       {/* Управление картой: приблизить / отдалить / вернуться на себя */}
       {!selectedPoi && (
-        <div className="pointer-events-none absolute bottom-24 right-3 z-20 flex flex-col gap-2">
+        <div className="pointer-events-none absolute bottom-[calc(8.75rem+env(safe-area-inset-bottom,0px))] right-3 z-20 flex flex-col gap-1.5">
           <button
             onClick={() => mapRef.current?.zoomIn()}
             aria-label="Приблизить карту"
             className="pointer-events-auto"
           >
-            <img src="/assets/icons/zoom-in.png" alt="" className="h-12 w-12" />
+            <img src="/assets/icons/zoom-in.png" alt="" className="h-[43px] w-[43px]" />
           </button>
           {position && (
             <button
@@ -118,7 +118,7 @@ export default function MapPage() {
               aria-label="Вернуться на мою позицию"
               className="pointer-events-auto"
             >
-              <img src="/assets/icons/recenter.png" alt="" className="h-12 w-12" />
+              <img src="/assets/icons/recenter.png" alt="" className="h-[43px] w-[43px]" />
             </button>
           )}
           <button
@@ -126,7 +126,7 @@ export default function MapPage() {
             aria-label="Отдалить карту"
             className="pointer-events-auto"
           >
-            <img src="/assets/icons/zoom-out.png" alt="" className="h-12 w-12" />
+            <img src="/assets/icons/zoom-out.png" alt="" className="h-[43px] w-[43px]" />
           </button>
         </div>
       )}

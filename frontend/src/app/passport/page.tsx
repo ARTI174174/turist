@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { resolveLevel } from '@/lib/level';
 import { api } from '@/lib/api';
 import { Poi } from '@/types';
+import { AvatarImage } from '@/components/character/AvatarImage';
 
 interface PassportVisit {
   id: string;
@@ -53,12 +54,10 @@ export default function PassportPage() {
 
       <div
         className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 56px)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 118px)' }}
       >
-        <div className="mb-5 flex items-center gap-3">
-          <div className="passport-stamp h-14 w-14 shrink-0 border-brass text-sm font-display text-brass">
-            {user.nickname.slice(0, 2).toUpperCase()}
-          </div>
+        <div className="mb-4 flex items-center gap-3">
+          <AvatarImage value={user.character?.avatarEmoji} className="avatar-portrait h-14 w-14 shrink-0 rounded-full border-2 border-brass p-0.5 text-xl" imageClassName="rounded-full" />
           <div>
             <p className="font-display text-lg text-ink">{user.nickname}</p>
             <p className="text-xs text-stone">Уровень {level} · {visits.length} мест открыто</p>
@@ -103,18 +102,15 @@ function VisitCard({ visit }: { visit: PassportVisit }) {
   }
 
   return (
-    <div className="adventure-card rounded-2xl p-4">
-      <div className="mb-1 flex items-start justify-between gap-2">
-        <div>
-          <span
-            className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-parchment"
-            style={{ backgroundColor: visit.poi.category.colorHex }}
-          >
+    <div className="adventure-card rounded-xl px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-parchment" style={{ backgroundColor: visit.poi.category.colorHex }}>
             {DIFFICULTY_LABEL[visit.poi.difficulty] ?? visit.poi.difficulty}
           </span>
-          <p className="font-display text-sm text-ink">{visit.poi.title}</p>
+          <p className="truncate font-display text-sm text-ink">{visit.poi.title}</p>
         </div>
-        <span className="whitespace-nowrap font-mono text-[11px] text-stone">
+        <span className="whitespace-nowrap font-mono text-[10px] text-stone">
           +{visit.xpAwarded} баллов
         </span>
       </div>
@@ -140,7 +136,7 @@ function VisitCard({ visit }: { visit: PassportVisit }) {
           </div>
         </div>
       ) : (
-        <button onClick={() => setEditing(true)} className="mt-1 text-left text-xs text-stone/80">
+        <button onClick={() => setEditing(true)} className="mt-1 block max-w-full truncate text-left text-[10px] text-stone/80">
           {note ? `📝 ${note}` : '+ добавить заметку'}
         </button>
       )}
