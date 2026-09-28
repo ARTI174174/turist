@@ -216,12 +216,14 @@ body {
 .bottom-nav-icon { width: 25px; height: 25px; object-fit: contain; opacity: .82; }
 .bottom-nav-item-active { color: #d8cd96; }
 .bottom-nav-item-active .bottom-nav-icon { opacity: 1; }
-.bottom-nav-item-primary { transform: translateY(-14px); color: #fff9e8; }
-.bottom-nav-item:focus-visible { outline: 2px solid rgba(216, 205, 150, .85); outline-offset: 2px; border-radius: 24px; }
+.bottom-nav-item-primary { transform: translateY(-18px); color: #fff9e8; }
+.bottom-nav-item:focus-visible { outline: none; }
+.bottom-nav-item:not(.bottom-nav-item-primary):focus-visible { outline: 2px solid rgba(216, 205, 150, .85); outline-offset: 2px; border-radius: 24px; }
+.bottom-nav-item-primary:focus-visible .bottom-nav-center { outline: 2px solid rgba(216, 205, 150, .85); outline-offset: 4px; }
 .bottom-nav-center {
   display: flex;
-  width: 68px;
-  height: 68px;
+  width: 88px;
+  height: 88px;
   align-items: center;
   justify-content: center;
   margin-bottom: 1px;
@@ -230,7 +232,7 @@ body {
   background: radial-gradient(circle at 35% 28%, #788d52, #34452b 78%);
   box-shadow: 0 0 0 4px #292c24, 0 7px 17px rgba(0, 0, 0, .45), inset 0 1px rgba(255, 255, 255, .3);
 }
-.bottom-nav-center img { width: 36px; height: 36px; object-fit: contain; }
+.bottom-nav-center img { width: 48px; height: 48px; object-fit: contain; }
 
 /* Панели приложения оформлены как походный журнал, а не как белые веб-карточки. */
 .bg-adventure .rounded-2xl.bg-white\/50,
