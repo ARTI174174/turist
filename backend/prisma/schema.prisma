@@ -219,6 +219,7 @@ model Poi {
   media           PoiMedia[]
   visitAttempts   VisitAttempt[]
   visits          Visit[]
+  rouletteChallenges RouletteChallenge[]
   routeStops      RouteStop[]
   collectionItems CollectionItem[]
   comments        PoiComment[]
@@ -615,6 +616,7 @@ model RouletteChallenge {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   dayKey    String
   poiId     String
+  poi       Poi      @relation(fields: [poiId], references: [id], onDelete: Cascade)
   startedAt DateTime @default(now())
   expiresAt DateTime
   status    String   @default("active")
