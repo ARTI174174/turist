@@ -123,7 +123,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       }
 
       const setPaint = (layerId: string, prop: string, value: any) => {
-        if (map.getLayer(layerId)) map.setPaintProperty(layerId, prop, value);
+        try {
+          // CARTO changes layer paint definitions between style versions.
+          // Skip missing/unsupported properties instead of aborting map load.
+          if (map.getLayer(layerId) && map.getPaintProperty(layerId, prop) !== undefined) {
+            map.setPaintProperty(layerId, prop, value);
+          }
+        } catch {
+          // A style layer may disappear while CARTO refreshes the style.
+        }
       };
 
       setPaint('background', 'background-color', '#EFE8D8');
