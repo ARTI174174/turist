@@ -43,7 +43,7 @@ export function GameOverlays() {
     setSeenWelcome(true);
   }
   function finishDaily() {
-    if (dailyStamp) localStorage.setItem(`turist:daily-notice:${user.id}`, dailyStamp);
+    if (dailyStamp && user?.id) localStorage.setItem(`turist:daily-notice:${user.id}`, dailyStamp);
     setDailyNoticeSeen(true);
   }
   async function finishNews() {
