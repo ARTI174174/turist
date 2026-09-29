@@ -33,14 +33,21 @@ export default function MapPage() {
     if (hydrated && !user) router.replace('/login');
   }, [hydrated, user, router]);
 
+  // Округляем позицию до ~100 м для ключа запроса — не дёргаем сервер на каждый метр GPS-шума
+  const posKey = position ? `${position.lat.toFixed(3)},${position.lng.toFixed(3)}` : null;
+
   const { data: pois = [] } = useQuery<Poi[]>({
-    queryKey: ['poi', 'list'],
-    queryFn: () => api.get<Poi[]>('/poi'),
+    queryKey: ['poi', 'list', posKey],
+    queryFn: () => api.get<Poi[]>(position ? `/poi?lat=${position.lat}&lng=${position.lng}` : '/poi'),
     enabled: !!user,
   });
 
-  // Округляем позицию до ~100 м для ключа запроса — не дёргаем сервер на каждый метр GPS-шума
-  const posKey = position ? `${position.lat.toFixed(3)},${position.lng.toFixed(3)}` : null;
+  const { data: secretPois = [] } = useQuery<Poi[]>({
+    queryKey: ['game', 'secrets', 'nearby', posKey],
+    queryFn: () => api.get<Poi[]>(`/game/secrets/nearby?lat=${position!.lat}&lng=${position!.lng}`),
+    enabled: !!user && !!position,
+    refetchInterval: 15_000,
+  });
 
   const { data: crystals = [] } = useQuery<Crystal[]>({
     queryKey: ['crystals', 'nearby', posKey],
@@ -77,7 +84,7 @@ export default function MapPage() {
     <main className="relative h-full w-full overflow-hidden bg-forest-dark">
       <MapView
         ref={mapRef}
-        pois={pois}
+        pois={[...pois, ...secretPois]}
         crystals={crystals}
         position={position}
         userAvatar={user.character?.avatarEmoji ?? '🙂'}
@@ -85,7 +92,19 @@ export default function MapPage() {
         onSelectCrystal={handleSelectCrystal}
       />
       <TopHud />
-      {!selectedPoi && <QuestsShopLauncher />}
+      {!selectedPoi && <QuestsShopLauncher showLeaderboard />}
+
+      {!selectedPoi && secretPois[0] && (
+        <button
+          onClick={() => selectPoi(secretPois[0])}
+          className="hud-panel absolute left-3 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 text-left text-parchment shadow-lg backdrop-blur"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 296px)' }}
+          aria-label={`Секретная точка, ${Math.round(secretPois[0].distanceMeters ?? 0)} метров`}
+        >
+          <img src="/assets/poi-markers/6.png" alt="" className="h-8 w-8 object-contain" />
+          <span><span className="block text-xs">Секретная точка</span><span className="block font-mono text-[10px] text-parchment/70">{secretPois[0].distanceMeters! >= 1000 ? `${(secretPois[0].distanceMeters! / 1000).toFixed(1)} км` : `${Math.round(secretPois[0].distanceMeters!)} м`}</span></span>
+        </button>
+      )}
 
       {geoError && (
         <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}>

@@ -73,6 +73,7 @@ export interface PoiSeedData {
   difficulty: 'easy' | 'medium' | 'hard';
   baseXp: number;
   requiresProof: boolean;
+  visibility?: 'public' | 'secret' | 'hidden_map';
 }
 
 export const POI_CATALOG: PoiSeedData[] = [
@@ -761,4 +762,26 @@ export const POI_CATALOG: PoiSeedData[] = [
     baseXp: 500,
     requiresProof: true,
   },
+  // Временные тестовые секреты около центра Сатки. Координаты и названия
+  // специально вынесены отдельными строками, чтобы их было легко заменить.
+  ...[
+    [55.066320, 59.040000], [55.062320, 59.040000],
+    [55.064320, 59.043000], [55.064320, 59.037000],
+    [55.066320, 59.043000], [55.062320, 59.037000],
+    [55.068320, 59.040000], [55.060320, 59.040000],
+    [55.064320, 59.046000], [55.064320, 59.034000],
+  ].map(([lat, lng], index) => ({
+    title: `Секретная точка ${String(index + 1).padStart(2, '0')} · Сатка`,
+    categoryCode: 'secret',
+    lat,
+    lng,
+    geofenceRadiusM: 30,
+    descriptionHistory: 'Временная тестовая секретная точка. Замените название и координаты на реальные перед запуском.',
+    interestingFacts: ['Эту точку первым сможет открыть только один путешественник.'],
+    bestSeason: ['summer', 'autumn', 'spring'],
+    difficulty: 'medium' as const,
+    baseXp: 0,
+    requiresProof: false,
+    visibility: 'secret' as const,
+  })),
 ];

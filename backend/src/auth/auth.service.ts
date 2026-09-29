@@ -74,7 +74,9 @@ export class AuthService {
       include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true },
     });
     const tokens = await this.issueTokens(user);
-    return { user: this.toPublicUser(user), ...tokens };
+    const dailyReward = await this.claimDailyReward(user.id);
+    const freshWallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId: user.id } });
+    return { user: this.toPublicUser({ ...user, wallet: freshWallet }), ...tokens, dailyReward };
   }
 
   async login(dto: LoginDto) {
@@ -99,13 +101,37 @@ export class AuthService {
       });
     }
 
+    const dailyReward = await this.claimDailyReward(user.id);
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
     const tokens = await this.issueTokens(user);
-    return { user: this.toPublicUser(user), ...tokens };
+    const freshWallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId: user.id } });
+    return { user: this.toPublicUser({ ...user, wallet: freshWallet }), ...tokens, dailyReward };
+  }
+
+  private async claimDailyReward(userId: string) {
+    const rewards: Array<{ currency: 'coins' | 'crystals'; amount: number }> = [
+      { currency: 'coins', amount: 50 }, { currency: 'coins', amount: 100 },
+      { currency: 'crystals', amount: 1 }, { currency: 'crystals', amount: 5 },
+      { currency: 'coins', amount: 500 }, { currency: 'crystals', amount: 10 },
+      { currency: 'coins', amount: 800 }, { currency: 'crystals', amount: 15 },
+      { currency: 'coins', amount: 900 }, { currency: 'crystals', amount: 20 },
+    ];
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true } });
+      const elapsed = current.lastDailyRewardAt ? now.getTime() - current.lastDailyRewardAt.getTime() : Number.POSITIVE_INFINITY;
+      if (elapsed < 24 * 60 * 60 * 1000) return { claimed: false, streak: current.dailyLoginStreak, nextAt: new Date(current.lastDailyRewardAt!.getTime() + 24 * 60 * 60 * 1000).toISOString() };
+      const streak = elapsed > 24 * 60 * 60 * 1000 ? 1 : current.dailyLoginStreak + 1;
+      const reward = rewards[(streak - 1) % 10];
+      await tx.user.update({ where: { id: userId }, data: { dailyLoginStreak: streak, lastDailyRewardAt: now } });
+      const wallet = await tx.wallet.update({ where: { userId }, data: reward.currency === 'coins' ? { coinsBalance: { increment: reward.amount } } : { crystalsBalance: { increment: reward.amount } } });
+      await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'daily_login', amount: reward.amount, currency: reward.currency, metadata: { streak } } });
+      return { claimed: true, streak, reward, nextAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async refresh(rawRefreshToken: string) {

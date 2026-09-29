@@ -7,6 +7,7 @@ import { TopHud } from '@/components/hud/TopHud';
 import { QuestsShopLauncher } from '@/components/hud/QuestsShopLauncher';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useAuthStore } from '@/store/useAuthStore';
+import { MedalsChestButton } from '@/components/game/MedalsChestButton';
 
 // Экран «Лагерь» — стартовый экран после запуска приложения: атмосферный
 // фон с костром + зацикленная фоновая музыка. Дальше сюда добавится
@@ -53,6 +54,7 @@ export default function CampPage() {
 
       <TopHud showNotifications={false} />
       <QuestsShopLauncher />
+      <MedalsChestButton />
 
       <button
         onClick={toggleSound}

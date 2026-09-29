@@ -12,6 +12,7 @@ import { UgcModule } from './ugc/ugc.module';
 import { SocialModule } from './social/social.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CrystalsModule } from './crystals/crystals.module';
+import { GameModule } from './game/game.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CrystalsModule } from './crystals/crystals.module';
     SocialModule,
     NotificationsModule,
     CrystalsModule,
+    GameModule,
   ],
   providers: [
     {

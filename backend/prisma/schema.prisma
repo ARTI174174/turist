@@ -105,6 +105,12 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   lastLoginAt         DateTime?
+  lastDailyRewardAt   DateTime?
+  dailyLoginStreak    Int      @default(0)
+  welcomeSeenAt       DateTime?
+  glassesLevel        Int      @default(0)
+  glovesLevel         Int      @default(0)
+  campThemeId         String   @default("default")
 
   character           CharacterProfile?
   wallet              Wallet?
@@ -125,6 +131,10 @@ model User {
   chatParticipations  ChatParticipant[]
   messagesSent        Message[]
   poiComments         PoiComment[]
+  secretFinds         Poi[]    @relation("SecretFinder")
+  expeditionClaims    ExpeditionClaim[]
+  rouletteChallenges  RouletteChallenge[]
+  newsReads           NewsRead[]
 
   @@map("users")
 }
@@ -184,6 +194,7 @@ model Poi {
   title               String
   categoryId          String
   category            PoiCategory   @relation(fields: [categoryId], references: [id])
+  markerAsset         String?
   lat                 Float
   lng                 Float
   regionCode          String        @default("RU-CHE")
@@ -199,6 +210,9 @@ model Poi {
   requiresProof       Boolean       @default(false)
   geofenceRadiusM     Int           @default(30) // радиус зоны открытия в метрах — настраивается на точку (озёра/крупные объекты — 1000-3000 м)
   createdBy           String?
+  secretFoundBy       String?
+  secretFinder        User?         @relation("SecretFinder", fields: [secretFoundBy], references: [id], onDelete: SetNull)
+  secretFoundAt       DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -545,6 +559,70 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model NewsPost {
+  id          String     @id @default(uuid())
+  title       String
+  body        String     @db.Text
+  publishedAt DateTime   @default(now())
+  createdBy   String
+  reads       NewsRead[]
+
+  @@index([publishedAt])
+  @@map("news_posts")
+}
+
+model NewsRead {
+  postId String
+  post   NewsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt DateTime @default(now())
+
+  @@id([postId, userId])
+  @@map("news_reads")
+}
+
+model ExpeditionEvent {
+  id         String             @id @default(uuid())
+  monthKey   String             @unique
+  title      String             @default("Великое путешествие")
+  poiIds     Json
+  startsAt   DateTime
+  endsAt     DateTime
+  claims     ExpeditionClaim[]
+
+  @@map("expedition_events")
+}
+
+model ExpeditionClaim {
+  id        String          @id @default(uuid())
+  eventId   String
+  event     ExpeditionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medalName String
+  claimedAt DateTime        @default(now())
+
+  @@unique([eventId, userId])
+  @@map("expedition_claims")
+}
+
+model RouletteChallenge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayKey    String
+  poiId     String
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  status    String   @default("active")
+  completedAt DateTime?
+
+  @@unique([userId, dayKey])
+  @@index([userId, status, expiresAt])
+  @@map("roulette_challenges")
 }
 
 // ============================================================

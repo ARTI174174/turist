@@ -20,6 +20,7 @@ export class VisitsService {
   async startAttempt(userId: string, dto: StartAttemptDto) {
     const poi = await this.prisma.poi.findUnique({ where: { id: dto.poiId } });
     if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    if (poi.visibility === 'secret' && poi.secretFoundAt) throw new BadRequestException({ code: 'SECRET_ALREADY_FOUND', message: 'Эту секретную точку уже нашёл другой путешественник.' });
 
     const alreadyVisited = await this.prisma.visit.findUnique({
       where: { userId_poiId: { userId, poiId: dto.poiId } },
@@ -28,12 +29,15 @@ export class VisitsService {
       throw new BadRequestException({ code: 'ALREADY_VISITED', message: 'Точка уже открыта' });
     }
 
+    const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
+    const gloveBonus = [0, 50, 100, 150, 200][player.glovesLevel] ?? 0;
+    const effectiveRadius = poi.geofenceRadiusM + gloveBonus;
     const { distanceMeters, withinGeofence, lowAccuracy } = this.anticheat.checkGeofence(
       dto.lat,
       dto.lng,
       poi.lat,
       poi.lng,
-      poi.geofenceRadiusM,
+      effectiveRadius,
       dto.accuracyM,
     );
 
@@ -60,6 +64,7 @@ export class VisitsService {
       lowAccuracyWarning: lowAccuracy,
       requiredDwellSeconds: REQUIRED_DWELL_SECONDS,
       requiredProof: poi.requiresProof ? 'photo' : 'none',
+      geofenceRadiusM: effectiveRadius,
     };
   }
 
@@ -68,12 +73,14 @@ export class VisitsService {
     const attempt = await this.getOwnedAttempt(userId, attemptId);
     const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId } });
 
+    const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
+    const effectiveRadius = poi.geofenceRadiusM + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
     const { distanceMeters, withinGeofence } = this.anticheat.checkGeofence(
       dto.lat,
       dto.lng,
       poi.lat,
       poi.lng,
-      poi.geofenceRadiusM,
+      effectiveRadius,
       dto.accuracyM,
     );
 
@@ -146,7 +153,9 @@ export class VisitsService {
 
     const speedSignal = await this.anticheat.checkSpeedAnomaly(userId, attempt.reportedLat, attempt.reportedLng);
     const accountSignal = await this.anticheat.checkAccountHistory(userId);
-    const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > poi.geofenceRadiusM ? 100 : 0;
+    const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
+    const effectiveRadius = poi.geofenceRadiusM + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
+    const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > effectiveRadius ? 100 : 0;
     const dwellSignal = attempt.dwellSeconds < REQUIRED_DWELL_SECONDS ? 100 : 0;
 
     const score = this.anticheat.computeScore({
@@ -179,12 +188,17 @@ export class VisitsService {
     }
 
     // resolution === 'verified' → начисляем награду идемпотентно
-    const xpAwarded = poi.baseXp;
+    const xpAwarded = poi.visibility === 'secret' ? 0 : poi.baseXp;
     // Монеты за посещение точки всегда равны количеству начисленных баллов опыта —
     // опыт копится (используется для уровня), монеты тратятся (магазин).
     const coinsAwarded = xpAwarded;
 
-    const visit = await this.prisma.$transaction(async (tx) => {
+    const isSecret = poi.visibility === 'secret';
+    const visitResult = await this.prisma.$transaction(async (tx) => {
+      if (isSecret) {
+        const discovery = await tx.poi.updateMany({ where: { id: poi.id, visibility: 'secret', secretFoundAt: null }, data: { secretFoundBy: userId, secretFoundAt: new Date() } });
+        if (discovery.count !== 1) throw new BadRequestException({ code: 'SECRET_ALREADY_FOUND', message: 'Эту секретную точку уже нашёл другой путешественник.' });
+      }
       const created = await tx.visit.create({
         data: {
           userId,
@@ -195,11 +209,31 @@ export class VisitsService {
         },
       });
       await tx.poi.update({ where: { id: poi.id }, data: { visitCount: { increment: 1 } } });
-      return created;
+      if (isSecret) {
+        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: 10000 }, crystalsBalance: { increment: 50 } } });
+        await tx.transaction.createMany({ data: [
+          { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: 10000, currency: 'coins', metadata: { poiId: poi.id } },
+          { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: 50, currency: 'crystals', metadata: { poiId: poi.id } },
+        ] });
+      }
+      return { visit: created, secretDiscovered: isSecret };
     });
 
     const progress = await this.progression.addXp(userId, xpAwarded);
     await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
+
+    const roulette = await this.prisma.rouletteChallenge.findFirst({ where: { userId, poiId: poi.id, status: 'active', expiresAt: { gt: new Date() } } });
+    let rouletteReward = 0;
+    if (roulette) {
+      rouletteReward = await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.rouletteChallenge.updateMany({ where: { id: roulette.id, status: 'active', expiresAt: { gt: new Date() } }, data: { status: 'completed', completedAt: new Date() } });
+        if (!claimed.count) return 0;
+        const prize = 10000;
+        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: prize } } });
+        await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'traveler_roulette_win', amount: prize, currency: 'coins', metadata: { challengeId: roulette.id } } });
+        return prize;
+      });
+    }
 
     // Проверка вех «посетить N мест» — начисляется поверх обычной награды за точку
     const totalVisits = await this.prisma.visit.count({ where: { userId } });
@@ -207,9 +241,11 @@ export class VisitsService {
 
     return {
       status: 'verified',
-      visit,
+      visit: visitResult.visit,
       xpAwarded,
-      coinsAwarded,
+      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? 10000 : 0) + rouletteReward,
+      secretDiscovery: visitResult.secretDiscovered ? { coins: 10000, crystals: 50 } : undefined,
+      rouletteReward,
       level: progress.level,
       newMilestones,
     };

@@ -29,6 +29,7 @@ export function TopHud({ showNotifications = true }: { showNotifications?: boole
 
   return (
     <>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-48 bg-gradient-to-b from-[#080b08]/95 via-[#080b08]/55 to-transparent" aria-hidden="true" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-1.5 px-2.5"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}

@@ -186,7 +186,7 @@ export class SocialService {
     await this.assertAreFriends(userId, friendUserId);
     const friend = await this.prisma.user.findUnique({
       where: { id: friendUserId },
-      include: { character: true, progress: true },
+      include: { character: true, progress: true, expeditionClaims: { orderBy: { claimedAt: 'desc' } } },
     });
     if (!friend || friend.status !== 'active') {
       throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'Игрок не найден' });
@@ -207,6 +207,7 @@ export class SocialService {
       level,
       borderColor: levelBorderColor(level),
       friendCount: friendCounts.get(friend.id) ?? 0,
+      medals: friend.expeditionClaims.map((claim) => ({ title: claim.medalName, receivedAt: claim.claimedAt })),
       visitedPlaces: visits.map((visit) => ({
         id: visit.id,
         poiId: visit.poiId,

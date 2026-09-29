@@ -12,6 +12,7 @@ import { Poi } from '@/types';
 import { AvatarImage } from '@/components/character/AvatarImage';
 import { POICard } from '@/components/map/POICard';
 import { ChevronRight } from 'lucide-react';
+import { TravelActivities } from '@/components/panels/TravelActivities';
 
 interface PassportVisit {
   id: string;
@@ -66,6 +67,8 @@ export default function PassportPage() {
             <p className="text-xs text-stone">Уровень {level} · {visits.length} мест открыто</p>
           </div>
         </div>
+
+        <TravelActivities />
 
         <p className="mb-2 font-display text-sm text-ink">Посещённые места</p>
         <p className="mb-3 text-xs text-stone">Сначала самые сложные — так интереснее вспоминать поход</p>

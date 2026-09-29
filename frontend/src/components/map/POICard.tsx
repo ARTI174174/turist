@@ -16,6 +16,11 @@ interface PoiComment {
   author: { id: string; nickname: string; avatarEmoji: string; level: number; borderColor: string };
 }
 
+interface ExtendedVisitResult extends VisitCompleteResult {
+  secretDiscovery?: { coins: number; crystals: number };
+  rouletteReward?: number;
+}
+
 interface POICardProps {
   poi: Poi;
   position: GeoPosition | null;
@@ -107,25 +112,29 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
     if (!attempt) return;
     setFlow('submitting');
     try {
-      const res = await api.post<VisitCompleteResult>(`/visits/${attempt.attemptId}/complete`);
+      const res = await api.post<ExtendedVisitResult>(`/visits/${attempt.attemptId}/complete`);
       setReward(res);
       if (res.status === 'verified') {
         setFlow('success');
         const milestoneXp = (res.newMilestones ?? []).reduce((sum, m) => sum + m.reward, 0);
         const milestoneCrystals = (res.newMilestones ?? []).reduce((sum, m) => sum + m.crystalReward, 0);
-        if (res.xpAwarded && user) {
+        if (user) {
           updateUser({
             progress: { xp: user.progress.xp + res.xpAwarded + milestoneXp, rankCode: user.progress.rankCode },
             wallet: {
               ...user.wallet,
               coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
-              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals,
+              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.secretDiscovery?.crystals ?? 0),
             },
           });
         }
         // Точка исчезает с карты сразу — сервер больше не отдаёт уже открытые этим игроком места
         queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
         queryClient.invalidateQueries({ queryKey: ['quests', 'milestones'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'expedition'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'leaderboard'] });
+          queryClient.invalidateQueries({ queryKey: ['game', 'secrets', 'nearby'] });
       } else {
         setFlow('review');
       }

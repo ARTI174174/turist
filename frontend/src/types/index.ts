@@ -18,6 +18,7 @@ export interface Poi {
   id: string;
   title: string;
   categoryId: string;
+  markerAsset?: string | null;
   category: PoiCategory;
   lat: number;
   lng: number;

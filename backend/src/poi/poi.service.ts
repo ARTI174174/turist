@@ -4,7 +4,7 @@ import { QueryPoiDto } from './dto/query-poi.dto';
 import { haversineDistanceMeters, parseBbox } from '../common/geo/geo.util';
 import { levelBorderColor, resolveLevel } from '../progression/progression.service';
 
-const SECRET_UNLOCK_XP_THRESHOLD = 10000; // порог способности «Опытный турист», см. SRS п.6.2
+const GLASSES_RADIUS_M = [500, 1000, 2000, 5000, 10000];
 
 @Injectable()
 export class PoiService {
@@ -27,7 +27,7 @@ export class PoiService {
     const categoryCodes = query.categories?.split(',').filter(Boolean);
     const visitedIds = await this.getVisitedPoiIds(userId);
 
-    const where: any = { status: 'active' };
+    const where: any = { status: 'active', visibility: 'public' };
 
     if (visitedIds.length > 0) {
       where.id = { notIn: visitedIds };
@@ -42,11 +42,7 @@ export class PoiService {
       where.category = { code: { in: categoryCodes } };
     }
 
-    // Секретные точки видны только при достаточном прогрессе (FR-POI-02)
-    const hasSecretAccess = userXp >= SECRET_UNLOCK_XP_THRESHOLD;
-    if (!hasSecretAccess) {
-      where.visibility = { in: ['public'] };
-    }
+    // Секреты выдаются отдельным nearby endpoint только игрокам в радиусе обнаружения.
 
     const pois = await this.prisma.poi.findMany({
       where,
@@ -54,18 +50,23 @@ export class PoiService {
       take: 500, // защита от чрезмерно широкого bbox — клиент должен приблизить карту
     });
 
-    return pois;
+    if (query.lat == null || query.lng == null || !userId) return pois;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
+    const rareRadius = GLASSES_RADIUS_M[user?.glassesLevel ?? 0] ?? 500;
+    const gloveBonus = [0, 50, 100, 150, 200][user?.glovesLevel ?? 0] ?? 0;
+    return pois
+      .filter((poi) => poi.category.code !== 'rare' || haversineDistanceMeters(query.lat!, query.lng!, poi.lat, poi.lng) <= rareRadius)
+      .map((poi) => ({ ...poi, geofenceRadiusM: poi.geofenceRadiusM + gloveBonus }));
   }
 
   async findNearby(lat: number, lng: number, radiusM: number, userXp = 0, userId?: string) {
-    const hasSecretAccess = userXp >= SECRET_UNLOCK_XP_THRESHOLD;
     const visitedIds = await this.getVisitedPoiIds(userId);
 
     const candidates = await this.prisma.poi.findMany({
       where: {
         status: 'active',
         ...(visitedIds.length > 0 ? { id: { notIn: visitedIds } } : {}),
-        ...(hasSecretAccess ? {} : { visibility: { in: ['public'] } }),
+        visibility: 'public',
       },
       include: { category: true },
     });

@@ -12,6 +12,7 @@ import { AVATARS } from '@/lib/avatars';
 import { AvatarImage } from '@/components/character/AvatarImage';
 import { api, ApiError } from '@/lib/api';
 import { AuthUser } from '@/types';
+import { AdminNewsPanel } from '@/components/panels/AdminNewsPanel';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -64,6 +65,7 @@ export default function ProfilePage() {
         <NicknameSection currentNickname={user.nickname} onSaved={(u) => updateUser(u)} />
 
         <PasswordSection />
+        <AdminNewsPanel />
 
         <button
           onClick={handleLogout}

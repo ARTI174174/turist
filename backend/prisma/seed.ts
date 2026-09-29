@@ -5,21 +5,24 @@ const prisma = new PrismaClient();
 
 // Полный набор категорий — цвета соответствуют комментариям в poi-data.ts
 const CATEGORIES = [
-  { code: 'lake', title: 'Озеро', colorHex: '#2196F3' },
-  { code: 'mountain', title: 'Гора', colorHex: '#795548' },
-  { code: 'river', title: 'Река', colorHex: '#00897B' },
-  { code: 'spring', title: 'Родник', colorHex: '#00BCD4' },
-  { code: 'cave', title: 'Пещера', colorHex: '#607D8B' },
-  { code: 'rare', title: 'Редкое место', colorHex: '#9C27B0' },
-  { code: 'museum', title: 'Музей', colorHex: '#8BC34A' },
-  { code: 'historic', title: 'Историческое место', colorHex: '#FBC02D' },
-  { code: 'monument', title: 'Памятник/достопримечательность', colorHex: '#FF9800' },
-  { code: 'park', title: 'Парк', colorHex: '#4CAF50' },
-  { code: 'secret', title: 'Секретное место', colorHex: '#212121' },
-  { code: 'waterfall', title: 'Водопад', colorHex: '#00ACC1' },
-  { code: 'village', title: 'Деревня', colorHex: '#4CAF50' },
-  { code: 'abandoned', title: 'Заброшенный объект', colorHex: '#455A64' },
+  { code: 'lake', title: 'Озеро', colorHex: '#2196F3', iconAsset: '/assets/poi-markers/12.png' },
+  { code: 'mountain', title: 'Гора', colorHex: '#795548', iconAsset: '/assets/poi-markers/2.png' },
+  { code: 'river', title: 'Река', colorHex: '#00897B', iconAsset: '/assets/poi-markers/10.png' },
+  { code: 'spring', title: 'Родник', colorHex: '#00BCD4', iconAsset: '/assets/poi-markers/7.png' },
+  { code: 'cave', title: 'Пещера', colorHex: '#607D8B', iconAsset: '/assets/poi-markers/5.png' },
+  { code: 'rare', title: 'Редкое место', colorHex: '#9C27B0', iconAsset: '/assets/poi-markers/13.png' },
+  { code: 'museum', title: 'Музей', colorHex: '#8BC34A', iconAsset: '/assets/poi-markers/14.png' },
+  { code: 'historic', title: 'Историческое место', colorHex: '#FBC02D', iconAsset: '/assets/poi-markers/14.png' },
+  { code: 'monument', title: 'Памятник/достопримечательность', colorHex: '#FF9800', iconAsset: '/assets/poi-markers/8.png' },
+  { code: 'park', title: 'Парк', colorHex: '#4CAF50', iconAsset: '/assets/poi-markers/4.png' },
+  { code: 'secret', title: 'Секретное место', colorHex: '#212121', iconAsset: '/assets/poi-markers/6.png' },
+  { code: 'waterfall', title: 'Водопад', colorHex: '#00ACC1', iconAsset: '/assets/poi-markers/10.png' },
+  { code: 'village', title: 'Деревня', colorHex: '#4CAF50', iconAsset: '/assets/poi-markers/11.png' },
+  { code: 'abandoned', title: 'Заброшенный объект', colorHex: '#455A64', iconAsset: '/assets/poi-markers/3.png' },
 ];
+
+const CATEGORY_REWARDS: Record<string, number> = { lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
+const CATEGORY_MARKERS: Record<string, number> = { lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
 
 async function main() {
   const categoryMap: Record<string, string> = {};
@@ -27,7 +30,7 @@ async function main() {
   for (const c of CATEGORIES) {
     const created = await prisma.poiCategory.upsert({
       where: { code: c.code },
-      update: {},
+      update: { title: c.title, colorHex: c.colorHex, iconAsset: c.iconAsset },
       create: c,
     });
     categoryMap[c.code] = created.id;
@@ -44,8 +47,11 @@ async function main() {
       continue;
     }
 
+    const isCity = poi.categoryCode === 'historic' && poi.geofenceRadiusM >= 2500;
+    const reward = isCity ? 100 : CATEGORY_REWARDS[poi.categoryCode] ?? poi.baseXp;
     const data = {
       categoryId,
+      markerAsset: `/assets/poi-markers/${isCity ? 1 : (CATEGORY_MARKERS[poi.categoryCode] ?? 3)}.png`,
       lat: poi.lat,
       lng: poi.lng,
       geofenceRadiusM: poi.geofenceRadiusM,
@@ -53,9 +59,10 @@ async function main() {
       interestingFacts: poi.interestingFacts,
       bestSeason: poi.bestSeason,
       difficulty: poi.difficulty,
-      baseXp: poi.baseXp,
-      baseCoins: poi.baseXp, // монеты за визит всегда равны баллам опыта (правило игры)
+      baseXp: reward,
+      baseCoins: reward,
       requiresProof: poi.requiresProof,
+      ...(poi.visibility ? { visibility: poi.visibility } : {}),
     };
 
     const existing = await prisma.poi.findFirst({ where: { title: poi.title } });

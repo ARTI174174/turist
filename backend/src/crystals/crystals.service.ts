@@ -3,7 +3,6 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { haversineDistanceMeters } from '../common/geo/geo.util';
 import { chunkRangeAround, randomPointInChunk } from '../common/geo/chunk.util';
 
-const BASE_VISIBILITY_RADIUS_M = 500;
 const PICKUP_RADIUS_M = 50;
 const RESPAWN_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -11,31 +10,42 @@ const RESPAWN_AFTER_MS = 24 * 60 * 60 * 1000;
 export class CrystalsService {
   constructor(private prisma: PrismaService) {}
 
-  async findNearby(lat: number, lng: number, visibilityRadiusM = BASE_VISIBILITY_RADIUS_M) {
+  async findNearby(userId: string, lat: number, lng: number) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true } });
+    const visibilityRadiusM = [500, 1000, 2000, 5000, 10000][user.glassesLevel] ?? 500;
     const { minChunkX, maxChunkX, minChunkY, maxChunkY } = chunkRangeAround(
       lat,
       lng,
       visibilityRadiusM,
     );
-    const results: { id: string; lat: number; lng: number; reward: number }[] = [];
-
-    for (let cx = minChunkX; cx <= maxChunkX; cx++) {
-      for (let cy = minChunkY; cy <= maxChunkY; cy++) {
-        const crystal = await this.ensureChunkCrystal(cx, cy);
-        if (crystal.pickedAt === null) {
-          results.push({
-            id: crystal.id,
-            lat: crystal.lat,
-            lng: crystal.lng,
-            reward: crystal.reward,
-          });
-        }
+    const chunks: { chunkX: number; chunkY: number; lat: number; lng: number; reward: number }[] = [];
+    for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+      for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY++) {
+        const point = randomPointInChunk(chunkX, chunkY);
+        chunks.push({ chunkX, chunkY, ...point, reward: 1 });
       }
     }
+    await this.prisma.crystal.createMany({ data: chunks, skipDuplicates: true });
+    let crystals = await this.prisma.crystal.findMany({
+      where: { chunkX: { gte: minChunkX, lte: maxChunkX }, chunkY: { gte: minChunkY, lte: maxChunkY } },
+    });
+    const stalePicked = crystals.filter((crystal) => crystal.pickedAt && Date.now() - crystal.pickedAt.getTime() > RESPAWN_AFTER_MS);
+    if (stalePicked.length) {
+      for (const crystal of stalePicked) {
+        const point = randomPointInChunk(crystal.chunkX, crystal.chunkY);
+        await this.prisma.crystal.updateMany({
+          where: { id: crystal.id, pickedAt: { lte: new Date(Date.now() - RESPAWN_AFTER_MS) } },
+          data: { ...point, pickedAt: null, pickedByUserId: null },
+        });
+      }
+      crystals = await this.prisma.crystal.findMany({
+        where: { chunkX: { gte: minChunkX, lte: maxChunkX }, chunkY: { gte: minChunkY, lte: maxChunkY } },
+      });
+    }
 
-    return results
-      .map((c) => ({
-        ...c,
+    return crystals
+      .filter((crystal) => crystal.pickedAt === null)
+      .map((c) => ({ ...c,
         distanceMeters: haversineDistanceMeters(lat, lng, c.lat, c.lng),
       }))
       .filter((c) => c.distanceMeters <= visibilityRadiusM)
@@ -101,10 +111,12 @@ export class CrystalsService {
     }
 
     const distance = haversineDistanceMeters(lat, lng, crystal.lat, crystal.lng);
-    if (distance > PICKUP_RADIUS_M) {
+    const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
+    const pickupRadius = PICKUP_RADIUS_M + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
+    if (distance > pickupRadius) {
       throw new BadRequestException({
         code: 'TOO_FAR',
-        message: `Подойди ближе чем на ${PICKUP_RADIUS_M} м, чтобы забрать кристалл`,
+        message: `Подойди ближе чем на ${pickupRadius} м, чтобы забрать кристалл`,
       });
     }
 
