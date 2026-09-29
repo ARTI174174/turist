@@ -174,20 +174,39 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const el = document.createElement('button');
       el.type = 'button';
       el.setAttribute('aria-label', poi.title);
-      el.style.width = '42px';
-      el.style.height = '48px';
+      el.title = poi.title;
+      Object.assign(el.style, {
+        display: 'block',
+        width: '46px',
+        height: '56px',
+        padding: '0',
+        border: '0',
+        borderRadius: '0',
+        background: 'transparent',
+        boxShadow: 'none',
+        cursor: 'pointer',
+        zIndex: '10',
+      });
+      // Use an actual image element: CSS background styles and blend modes on
+      // map buttons made the illustrated pins look like tiny dark circles.
       const markerAsset = poi.markerAsset || poi.category?.iconAsset;
-      el.style.backgroundImage = markerAsset ? `url("${markerAsset}")` : 'none';
-      el.style.backgroundSize = 'contain';
-      el.style.backgroundRepeat = 'no-repeat';
-      el.style.backgroundPosition = 'center';
-      el.style.filter = 'drop-shadow(0 1px 4px rgba(0,0,0,0.55))';
-      el.style.mixBlendMode = 'multiply';
-      el.style.cursor = 'pointer';
-      el.style.padding = '0';
-      el.style.zIndex = '10';
+      if (markerAsset) {
+        const image = document.createElement('img');
+        image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=2`;
+        image.alt = '';
+        image.draggable = false;
+        Object.assign(image.style, {
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
+          pointerEvents: 'none',
+        });
+        el.appendChild(image);
+      }
 
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
