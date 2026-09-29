@@ -120,7 +120,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
         const milestoneCrystals = (res.newMilestones ?? []).reduce((sum, m) => sum + m.crystalReward, 0);
         if (user) {
           updateUser({
-            progress: { xp: user.progress.xp + res.xpAwarded + milestoneXp, rankCode: user.progress.rankCode },
+            progress: { xp: user.progress.xp + (res.xpAwarded ?? 0) + milestoneXp, rankCode: user.progress.rankCode },
             wallet: {
               ...user.wallet,
               coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
@@ -134,7 +134,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
         queryClient.invalidateQueries({ queryKey: ['game', 'expedition'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'leaderboard'] });
-          queryClient.invalidateQueries({ queryKey: ['game', 'secrets', 'nearby'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'secrets', 'nearby'] });
       } else {
         setFlow('review');
       }
@@ -272,7 +272,7 @@ function ExploreControls({
         <Sparkles className="text-amber" size={28} />
         <p className="font-display text-lg text-forest">Точка открыта!</p>
         <p className="font-mono text-sm text-ink/70">
-          +{reward.xpAwarded} баллов · +{reward.coinsAwarded} монет
+          +{reward.xpAwarded ?? 0} баллов · +{reward.coinsAwarded ?? 0} монет
         </p>
         {reward.newMilestones && reward.newMilestones.length > 0 && (
           <div className="mt-1 space-y-1">
