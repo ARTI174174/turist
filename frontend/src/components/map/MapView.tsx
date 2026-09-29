@@ -25,6 +25,24 @@ export interface MapViewHandle {
 const DEFAULT_CENTER: [number, number] = [61.4, 55.15];
 const DEFAULT_ZOOM = 8;
 const MAP_STYLE = 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+// Keep marker selection on the client as well as in the seed. This lets the
+// new art appear immediately even while an older API/database seed is live.
+const POI_MARKERS: Record<string, number> = {
+  lake: 12,
+  mountain: 2,
+  river: 10,
+  spring: 7,
+  cave: 5,
+  rare: 13,
+  museum: 14,
+  historic: 14,
+  monument: 8,
+  park: 4,
+  secret: 6,
+  waterfall: 10,
+  village: 11,
+  abandoned: 3,
+};
 const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
   [56.0, 50.5],
   [64.0, 56.8],
@@ -189,10 +207,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       });
       // Use an actual image element: CSS background styles and blend modes on
       // map buttons made the illustrated pins look like tiny dark circles.
-      const markerAsset = poi.markerAsset || poi.category?.iconAsset;
+      const categoryCode = poi.category?.code;
+      const markerNumber = categoryCode === 'historic' && poi.geofenceRadiusM >= 2500
+        ? 1
+        : categoryCode ? POI_MARKERS[categoryCode] : undefined;
+      const markerAsset = markerNumber
+        ? `/assets/poi-markers/${markerNumber}.png`
+        : poi.markerAsset || poi.category?.iconAsset;
       if (markerAsset) {
         const image = document.createElement('img');
-        image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=2`;
+        image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=3`;
         image.alt = '';
         image.draggable = false;
         Object.assign(image.style, {
