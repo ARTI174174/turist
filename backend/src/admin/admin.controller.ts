@@ -29,3 +29,14 @@ export class AdminController {
   @Delete('crystals/:id') deleteCrystal(@Param('id') id: string) { return this.admin.deleteCrystal(id); }
   @Get('snapshot') snapshot() { return this.admin.snapshot(); }
 }
+
+// Для карты панели можно показывать только опубликованные публичные точки.
+// Секретные/скрытые места, игроки и любые операции редактирования требуют admin.
+@ApiTags('admin')
+@Controller('admin/map-preview')
+export class AdminMapPreviewController {
+  constructor(private readonly admin: AdminService) {}
+
+  @Get()
+  preview() { return this.admin.mapPreview(); }
+}

@@ -52,6 +52,13 @@ export class AdminService {
     return { poi, players, shopItems, crystals };
   }
   categories() { return this.prisma.poiCategory.findMany({ orderBy: { title: 'asc' } }); }
+  mapPreview() {
+    return this.prisma.poi.findMany({
+      where: { status: 'active', visibility: 'public' },
+      select: { id: true, title: true, lat: true, lng: true, baseXp: true, geofenceRadiusM: true, category: { select: { code: true, title: true, colorHex: true } } },
+      orderBy: { title: 'asc' }, take: 5000,
+    });
+  }
   listPoi(search?: string) {
     const q = search?.trim();
     return this.prisma.poi.findMany({ where: q ? { OR: [{ title: { contains: q, mode: 'insensitive' } }, { descriptionHistory: { contains: q, mode: 'insensitive' } }] } : {}, include: { category: true }, orderBy: { title: 'asc' }, take: 5000 });
