@@ -67,7 +67,11 @@ async function main() {
 
     const existing = await prisma.poi.findFirst({ where: { title: poi.title } });
 
-    if (existing) {
+    if (existing?.createdBy === 'admin-tool') {
+      // Настройки, изменённые через панель администратора, принадлежат базе
+      // и не должны затираться при очередном запуске seed.
+      continue;
+    } else if (existing) {
       // Точка уже была — обновляем координаты/описание, если их поправили в poi-data.ts
       await prisma.poi.update({ where: { id: existing.id }, data });
       updated++;

@@ -13,6 +13,7 @@ import { SocialModule } from './social/social.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CrystalsModule } from './crystals/crystals.module';
 import { GameModule } from './game/game.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { GameModule } from './game/game.module';
     NotificationsModule,
     CrystalsModule,
     GameModule,
+    AdminModule,
   ],
   providers: [
     {
