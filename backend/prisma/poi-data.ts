@@ -25,7 +25,9 @@
 //     interestingFacts: ['Интересный факт 1', 'Интересный факт 2'],
 //     bestSeason: ['summer', 'autumn'], // из: summer, autumn, winter, spring
 //     difficulty: 'easy',       // easy | medium | hard
-//     baseXp: 300,              // награда баллами опыта; монеты за визит всегда равны этому же числу автоматически
+//     baseXp: 300,              // опыт за посещение
+//     baseCoins: 300,            // золото за посещение
+//     baseCrystals: 0,           // бриллианты за посещение
 //     requiresProof: false,     // true — потребует фото/QR для подтверждения (для ценных/удалённых мест)
 //   },
 //
@@ -42,7 +44,7 @@
 //   park      — парк/нацпарк/заповедник (зелёный)
 //   secret    — секретное место (видно только с 10000 XP) (чёрный)
 //
-// СКОЛЬКО СТАВИТЬ baseXp (баллов) — ориентир по типу места:
+// СКОЛЬКО СТАВИТЬ baseXp (баллов опыта) — ориентир по типу места:
 //   Синий уровень (обычные точки):
 //     город/село/деревня — 100 · озеро — 50 · река — 10 · мелкий памятник — 100
 //   Жёлтый уровень (крупные городские объекты):
@@ -72,6 +74,8 @@ export interface PoiSeedData {
   bestSeason: string[];
   difficulty: 'easy' | 'medium' | 'hard';
   baseXp: number;
+  baseCoins?: number;
+  baseCrystals?: number;
   requiresProof: boolean;
   visibility?: 'public' | 'secret' | 'hidden_map';
 }

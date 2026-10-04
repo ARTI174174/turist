@@ -2,13 +2,12 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { resolveLevel } from '../progression/progression.service';
+import { getUpgradeSettings } from '../common/game-upgrades';
 
 const DAILY_REWARDS = [
   { coins: 50 }, { coins: 100 }, { crystals: 1 }, { crystals: 5 }, { coins: 500 },
   { crystals: 10 }, { coins: 800 }, { crystals: 15 }, { coins: 900 }, { crystals: 20 },
 ];
-const GLASSES = [500, 1000, 2000, 5000, 10000];
-const GLOVES = [0, 50, 100, 150, 200];
 
 @Injectable()
 export class GameService {
@@ -123,7 +122,9 @@ export class GameService {
 
   async nearbySecrets(userId: string, lat: number, lng: number) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
-    const visibility = GLASSES[user.glassesLevel] ?? 500;
+    const [glasses, gloves] = await Promise.all([getUpgradeSettings(this.prisma, 'glasses'), getUpgradeSettings(this.prisma, 'gloves')]);
+    const visibility = glasses[user.glassesLevel]?.effectValue ?? 500;
+    const gloveBonus = gloves[user.glovesLevel]?.effectValue ?? 0;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
     const deltaLat = visibility / 111_320;
     const deltaLng = visibility / (111_320 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
@@ -132,7 +133,7 @@ export class GameService {
     return secrets.map((poi) => {
       const dLat = toRad(poi.lat - lat); const dLng = toRad(poi.lng - lng);
       const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat)) * Math.cos(toRad(poi.lat)) * Math.sin(dLng / 2) ** 2;
-      return { ...poi, distanceMeters: 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)), geofenceRadiusM: poi.geofenceRadiusM + (GLOVES[user.glovesLevel] ?? 0) };
+      return { ...poi, distanceMeters: 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)), geofenceRadiusM: poi.geofenceRadiusM + gloveBonus };
     }).filter((poi) => poi.distanceMeters <= visibility).sort((a, b) => a.distanceMeters - b.distanceMeters);
   }
 
@@ -157,19 +158,21 @@ export class GameService {
 
   async getUpgrades(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
-    return { glassesLevel: user.glassesLevel, glassesRangeM: GLASSES[user.glassesLevel] ?? 500, glovesLevel: user.glovesLevel, glovesBonusM: GLOVES[user.glovesLevel] ?? 0, items: [
-      ...GLASSES.slice(1).map((meters, index) => ({ kind: 'glasses', level: index + 1, meters, price: [10000, 20000, 50000, 100000][index], image: '/assets/shop/glasses.png' })),
-      ...GLOVES.slice(1).map((meters, index) => ({ kind: 'gloves', level: index + 1, meters, price: [10000, 20000, 50000, 100000][index], image: '/assets/shop/gloves.png' })),
+    const [glasses, gloves] = await Promise.all([getUpgradeSettings(this.prisma, 'glasses'), getUpgradeSettings(this.prisma, 'gloves')]);
+    return { glassesLevel: user.glassesLevel, glassesRangeM: glasses[user.glassesLevel]?.effectValue ?? 500, glovesLevel: user.glovesLevel, glovesBonusM: gloves[user.glovesLevel]?.effectValue ?? 0, items: [
+      ...glasses.slice(1).map((setting) => ({ kind: setting.kind, level: setting.level, meters: setting.effectValue, price: setting.priceCoins, image: '/assets/shop/glasses.png' })),
+      ...gloves.slice(1).map((setting) => ({ kind: setting.kind, level: setting.level, meters: setting.effectValue, price: setting.priceCoins, image: '/assets/shop/gloves.png' })),
     ] };
   }
 
   async buyUpgrade(userId: string, kind: string, level: number) {
-    const levels = kind === 'glasses' ? GLASSES : kind === 'gloves' ? GLOVES : null;
-    if (!levels || !Number.isInteger(level) || level < 1 || level > 4) throw new BadRequestException('Неизвестное улучшение.');
+    if ((kind !== 'glasses' && kind !== 'gloves') || !Number.isInteger(level) || level < 1 || level > 4) throw new BadRequestException('Неизвестное улучшение.');
     const field = kind === 'glasses' ? 'glassesLevel' : 'glovesLevel';
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
     if (level !== user[field] + 1) throw new BadRequestException('Улучшения нужно покупать по порядку.');
-    const price = [10000, 20000, 50000, 100000][level - 1];
+    const settings = await getUpgradeSettings(this.prisma, kind);
+    const price = settings[level]?.priceCoins;
+    if (price == null) throw new BadRequestException('Для этого уровня не задана цена.');
     const wallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId } });
     if (wallet.coinsBalance < price) throw new BadRequestException('Недостаточно золота.');
     await this.prisma.$transaction([

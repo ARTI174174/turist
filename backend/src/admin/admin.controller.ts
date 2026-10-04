@@ -22,6 +22,8 @@ export class AdminController {
   @Get('shop') shop() { return this.admin.shop(); }
   @Post('shop') createShopItem(@Body() body: unknown) { return this.admin.createShopItem(body); }
   @Patch('shop/:id') updateShopItem(@Param('id') id: string, @Body() body: unknown) { return this.admin.updateShopItem(id, body); }
+  @Get('shop-upgrades') shopUpgrades() { return this.admin.upgradeSettings(); }
+  @Patch('shop-upgrades/:kind/:level') updateShopUpgrade(@Param('kind') kind: string, @Param('level') level: string, @Body() body: unknown) { return this.admin.updateUpgrade(kind, level, body); }
   @Get('players') players(@Query('search') search?: string) { return this.admin.players(search); }
   @Get('crystals') crystals() { return this.admin.crystals(); }
   @Post('crystals') createCrystal(@Body() body: unknown) { return this.admin.createCrystal(body); }

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../common/prisma/prisma.service';
 import { haversineDistanceMeters } from '../common/geo/geo.util';
 import { chunkRangeAround, randomPointInChunk } from '../common/geo/chunk.util';
+import { getUpgradeSettings } from '../common/game-upgrades';
 
 const PICKUP_RADIUS_M = 50;
 const RESPAWN_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -12,7 +13,8 @@ export class CrystalsService {
 
   async findNearby(userId: string, lat: number, lng: number) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true } });
-    const visibilityRadiusM = [500, 1000, 2000, 5000, 10000][user.glassesLevel] ?? 500;
+    const glasses = await getUpgradeSettings(this.prisma, 'glasses');
+    const visibilityRadiusM = glasses[user.glassesLevel]?.effectValue ?? 500;
     const { minChunkX, maxChunkX, minChunkY, maxChunkY } = chunkRangeAround(
       lat,
       lng,
@@ -112,7 +114,8 @@ export class CrystalsService {
 
     const distance = haversineDistanceMeters(lat, lng, crystal.lat, crystal.lng);
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
-    const pickupRadius = PICKUP_RADIUS_M + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
+    const gloves = await getUpgradeSettings(this.prisma, 'gloves');
+    const pickupRadius = PICKUP_RADIUS_M + (gloves[player.glovesLevel]?.effectValue ?? 0);
     if (distance > pickupRadius) {
       throw new BadRequestException({
         code: 'TOO_FAR',

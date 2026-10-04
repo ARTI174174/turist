@@ -3,6 +3,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { AnticheatService } from './anticheat.service';
 import { ProgressionService } from '../progression/progression.service';
 import { EconomyService } from '../economy/economy.service';
+import { getUpgradeSettings } from '../common/game-upgrades';
 import { StartAttemptDto, HeartbeatDto, ProofDto } from './dto/attempt.dto';
 
 const REQUIRED_DWELL_SECONDS = 20;
@@ -30,7 +31,8 @@ export class VisitsService {
     }
 
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
-    const gloveBonus = [0, 50, 100, 150, 200][player.glovesLevel] ?? 0;
+    const gloves = await getUpgradeSettings(this.prisma, 'gloves');
+    const gloveBonus = gloves[player.glovesLevel]?.effectValue ?? 0;
     const effectiveRadius = poi.geofenceRadiusM + gloveBonus;
     const { distanceMeters, withinGeofence, lowAccuracy } = this.anticheat.checkGeofence(
       dto.lat,
@@ -74,7 +76,8 @@ export class VisitsService {
     const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId } });
 
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
-    const effectiveRadius = poi.geofenceRadiusM + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
+    const gloves = await getUpgradeSettings(this.prisma, 'gloves');
+    const effectiveRadius = poi.geofenceRadiusM + (gloves[player.glovesLevel]?.effectValue ?? 0);
     const { distanceMeters, withinGeofence } = this.anticheat.checkGeofence(
       dto.lat,
       dto.lng,
@@ -154,7 +157,8 @@ export class VisitsService {
     const speedSignal = await this.anticheat.checkSpeedAnomaly(userId, attempt.reportedLat, attempt.reportedLng);
     const accountSignal = await this.anticheat.checkAccountHistory(userId);
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
-    const effectiveRadius = poi.geofenceRadiusM + ([0, 50, 100, 150, 200][player.glovesLevel] ?? 0);
+    const gloves = await getUpgradeSettings(this.prisma, 'gloves');
+    const effectiveRadius = poi.geofenceRadiusM + (gloves[player.glovesLevel]?.effectValue ?? 0);
     const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > effectiveRadius ? 100 : 0;
     const dwellSignal = attempt.dwellSeconds < REQUIRED_DWELL_SECONDS ? 100 : 0;
 
@@ -189,9 +193,8 @@ export class VisitsService {
 
     // resolution === 'verified' → начисляем награду идемпотентно
     const xpAwarded = poi.visibility === 'secret' ? 0 : poi.baseXp;
-    // Монеты за посещение точки всегда равны количеству начисленных баллов опыта —
-    // опыт копится (используется для уровня), монеты тратятся (магазин).
-    const coinsAwarded = xpAwarded;
+    const coinsAwarded = poi.visibility === 'secret' ? 0 : poi.baseCoins;
+    const crystalsAwarded = poi.visibility === 'secret' ? 0 : poi.baseCrystals;
 
     const isSecret = poi.visibility === 'secret';
     const visitResult = await this.prisma.$transaction(async (tx) => {
@@ -206,6 +209,7 @@ export class VisitsService {
           visitAttemptId: attempt.id,
           xpAwarded,
           coinsAwarded,
+          crystalsAwarded,
         },
       });
       await tx.poi.update({ where: { id: poi.id }, data: { visitCount: { increment: 1 } } });
@@ -216,11 +220,15 @@ export class VisitsService {
           { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: 50, currency: 'crystals', metadata: { poiId: poi.id } },
         ] });
       }
+      if (crystalsAwarded > 0) {
+        const wallet = await tx.wallet.update({ where: { userId }, data: { crystalsBalance: { increment: crystalsAwarded } } });
+        await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'visit', amount: crystalsAwarded, currency: 'crystals', metadata: { poiId: poi.id } } });
+      }
       return { visit: created, secretDiscovered: isSecret };
     });
 
     const progress = await this.progression.addXp(userId, xpAwarded);
-    await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
+    if (coinsAwarded > 0) await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
 
     const roulette = await this.prisma.rouletteChallenge.findFirst({ where: { userId, poiId: poi.id, status: 'active', expiresAt: { gt: new Date() } } });
     let rouletteReward = 0;
@@ -244,6 +252,7 @@ export class VisitsService {
       visit: visitResult.visit,
       xpAwarded,
       coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? 10000 : 0) + rouletteReward,
+      crystalsAwarded: crystalsAwarded + (visitResult.secretDiscovered ? 50 : 0),
       secretDiscovery: visitResult.secretDiscovered ? { coins: 10000, crystals: 50 } : undefined,
       rouletteReward,
       level: progress.level,

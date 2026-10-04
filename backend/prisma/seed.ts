@@ -23,6 +23,10 @@ const CATEGORIES = [
 
 const CATEGORY_REWARDS: Record<string, number> = { lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
 const CATEGORY_MARKERS: Record<string, number> = { lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
+const UPGRADE_SETTINGS = [
+  ...[500, 1000, 2000, 5000, 10000].map((effectValue, level) => ({ kind: 'glasses', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),
+  ...[0, 50, 100, 150, 200].map((effectValue, level) => ({ kind: 'gloves', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),
+];
 
 async function main() {
   const categoryMap: Record<string, string> = {};
@@ -59,8 +63,9 @@ async function main() {
       interestingFacts: poi.interestingFacts,
       bestSeason: poi.bestSeason,
       difficulty: poi.difficulty,
-      baseXp: reward,
-      baseCoins: reward,
+      baseXp: poi.baseXp ?? reward,
+      baseCoins: poi.baseCoins ?? reward,
+      baseCrystals: poi.baseCrystals ?? 0,
       requiresProof: poi.requiresProof,
       ...(poi.visibility ? { visibility: poi.visibility } : {}),
     };
@@ -117,6 +122,14 @@ async function main() {
     if (!exists) {
       await prisma.shopItem.create({ data: item as any });
     }
+  }
+
+  for (const setting of UPGRADE_SETTINGS) {
+    await prisma.shopUpgradeConfig.upsert({
+      where: { kind_level: { kind: setting.kind, level: setting.level } },
+      update: {},
+      create: setting,
+    });
   }
 
   // eslint-disable-next-line no-console

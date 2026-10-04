@@ -30,6 +30,7 @@ export interface Poi {
   visitCount: number;
   baseXp: number;
   baseCoins: number;
+  baseCrystals: number;
   requiresProof: boolean;
   geofenceRadiusM: number;
   distanceMeters?: number;
@@ -87,6 +88,7 @@ export interface VisitCompleteResult {
   visit?: unknown;
   xpAwarded?: number;
   coinsAwarded?: number;
+  crystalsAwarded?: number;
   level?: number;
   newMilestones?: { count: number; reward: number; crystalReward: number }[];
   message?: string;

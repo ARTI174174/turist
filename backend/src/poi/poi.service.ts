@@ -3,8 +3,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { QueryPoiDto } from './dto/query-poi.dto';
 import { haversineDistanceMeters, parseBbox } from '../common/geo/geo.util';
 import { levelBorderColor, resolveLevel } from '../progression/progression.service';
-
-const GLASSES_RADIUS_M = [500, 1000, 2000, 5000, 10000];
+import { getUpgradeSettings } from '../common/game-upgrades';
 
 @Injectable()
 export class PoiService {
@@ -52,8 +51,9 @@ export class PoiService {
 
     if (query.lat == null || query.lng == null || !userId) return pois;
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
-    const rareRadius = GLASSES_RADIUS_M[user?.glassesLevel ?? 0] ?? 500;
-    const gloveBonus = [0, 50, 100, 150, 200][user?.glovesLevel ?? 0] ?? 0;
+    const [glasses, gloves] = await Promise.all([getUpgradeSettings(this.prisma, 'glasses'), getUpgradeSettings(this.prisma, 'gloves')]);
+    const rareRadius = glasses[user?.glassesLevel ?? 0]?.effectValue ?? 500;
+    const gloveBonus = gloves[user?.glovesLevel ?? 0]?.effectValue ?? 0;
     return pois
       .filter((poi) => poi.category.code !== 'rare' || haversineDistanceMeters(query.lat!, query.lng!, poi.lat, poi.lng) <= rareRadius)
       .map((poi) => ({ ...poi, geofenceRadiusM: poi.geofenceRadiusM + gloveBonus }));

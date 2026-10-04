@@ -18,6 +18,7 @@ interface PassportVisit {
   id: string;
   xpAwarded: number;
   coinsAwarded: number;
+  crystalsAwarded: number;
   note: string | null;
   visitedAt: string;
   poi: Poi;

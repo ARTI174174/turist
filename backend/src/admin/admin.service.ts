@@ -3,8 +3,9 @@ import { PoiVisibility, Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { toChunk } from '../common/geo/chunk.util';
 import { resolveLevel } from '../progression/progression.service';
+import { getUpgradeSettings, UpgradeKind } from '../common/game-upgrades';
 
-type PoiInput = { title: string; categoryCode?: string; category?: string; lat: number; lng: number; description?: string; type?: string; reward?: number; radius?: number; visibility?: string };
+type PoiInput = { title: string; categoryCode?: string; category?: string; lat: number; lng: number; description?: string; type?: string; reward?: number; xp?: number; coins?: number; crystals?: number; radius?: number; visibility?: string };
 
 @Injectable()
 export class AdminService {
@@ -33,13 +34,16 @@ export class AdminService {
     const category = categoryCache?.get(String(categoryCode ?? '').trim()) ?? await this.category(categoryCode);
     const lat = this.number(item.lat, 'широта', -90, 90);
     const lng = this.number(item.lng, 'долгота', -180, 180);
-    const reward = Math.round(this.number(item.reward ?? 300, 'награда', 0, 1_000_000));
+    const legacyReward = item.reward;
+    const xp = Math.round(this.number(item.xp ?? legacyReward ?? 300, 'опыт', 0, 1_000_000));
+    const coins = Math.round(this.number(item.coins ?? legacyReward ?? xp, 'золото', 0, 1_000_000_000));
+    const crystals = Math.round(this.number(item.crystals ?? 0, 'бриллианты', 0, 1_000_000));
     const radius = Math.round(this.number(item.radius ?? 30, 'радиус', 1, 100_000));
     const visibility = item.visibility === 'secret' || category.code === 'secret' ? PoiVisibility.secret : PoiVisibility.public;
     return {
       title, categoryId: category.id, markerAsset: category.iconAsset, lat, lng,
       descriptionHistory: String(item.description ?? '').trim() || null,
-      interestingFacts: [], baseXp: reward, baseCoins: reward,
+      interestingFacts: [], baseXp: xp, baseCoins: coins, baseCrystals: crystals,
       geofenceRadiusM: radius, visibility, status: 'active' as const,
     };
   }
@@ -55,7 +59,7 @@ export class AdminService {
   mapPreview() {
     return this.prisma.poi.findMany({
       where: { status: 'active', visibility: 'public' },
-      select: { id: true, title: true, lat: true, lng: true, baseXp: true, geofenceRadiusM: true, category: { select: { code: true, title: true, colorHex: true } } },
+      select: { id: true, title: true, lat: true, lng: true, baseXp: true, baseCoins: true, baseCrystals: true, geofenceRadiusM: true, category: { select: { code: true, title: true, colorHex: true } } },
       orderBy: { title: 'asc' }, take: 5000,
     });
   }
@@ -97,7 +101,7 @@ export class AdminService {
     const existing = await this.prisma.poi.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Точка не найдена');
     const body = this.object(raw);
-    const merged = await this.normalizePoi({ title: body.title ?? existing.title, categoryCode: body.categoryCode ?? (await this.prisma.poiCategory.findUniqueOrThrow({ where: { id: existing.categoryId } })).code, lat: body.lat ?? existing.lat, lng: body.lng ?? existing.lng, description: body.description ?? existing.descriptionHistory, reward: body.reward ?? existing.baseXp, radius: body.radius ?? existing.geofenceRadiusM, visibility: body.visibility ?? existing.visibility });
+    const merged = await this.normalizePoi({ title: body.title ?? existing.title, categoryCode: body.categoryCode ?? (await this.prisma.poiCategory.findUniqueOrThrow({ where: { id: existing.categoryId } })).code, lat: body.lat ?? existing.lat, lng: body.lng ?? existing.lng, description: body.description ?? existing.descriptionHistory, xp: body.xp ?? existing.baseXp, coins: body.coins ?? body.reward ?? existing.baseCoins, crystals: body.crystals ?? existing.baseCrystals, radius: body.radius ?? existing.geofenceRadiusM, visibility: body.visibility ?? existing.visibility });
     return this.prisma.poi.update({ where: { id }, data: { ...merged, createdBy: 'admin-tool' }, include: { category: true } });
   }
   async archivePoi(id: string) {
@@ -118,6 +122,26 @@ export class AdminService {
   async updateShopItem(id: string, raw: unknown) {
     if (!(await this.prisma.shopItem.findUnique({ where: { id }, select: { id: true } }))) throw new NotFoundException('Товар не найден');
     return this.prisma.shopItem.update({ where: { id }, data: this.shopData(raw) });
+  }
+  async upgradeSettings() {
+    const [glasses, gloves] = await Promise.all([
+      getUpgradeSettings(this.prisma, 'glasses'),
+      getUpgradeSettings(this.prisma, 'gloves'),
+    ]);
+    return [...glasses, ...gloves];
+  }
+  async updateUpgrade(kindInput: string, levelInput: string, raw: unknown) {
+    if (kindInput !== 'glasses' && kindInput !== 'gloves') throw new BadRequestException('Неизвестное улучшение');
+    const kind = kindInput as UpgradeKind;
+    const level = Math.round(this.number(levelInput, 'уровень улучшения', 1, 4));
+    const body = this.object(raw);
+    const effectValue = Math.round(this.number(body.effectValue, kind === 'glasses' ? 'дальность видимости, м' : 'прибавка к радиусу, м', kind === 'glasses' ? 500 : 0, 100_000));
+    const priceCoins = Math.round(this.number(body.priceCoins, 'цена в золоте', 0, 1_000_000_000));
+    return this.prisma.shopUpgradeConfig.upsert({
+      where: { kind_level: { kind, level } },
+      update: { effectValue, priceCoins },
+      create: { kind, level, effectValue, priceCoins },
+    });
   }
   async players(search?: string) {
     const q = search?.trim();
@@ -143,6 +167,7 @@ export class AdminService {
   }
   async snapshot() {
     const [points, items, crystals] = await Promise.all([this.listPoi(), this.shop(), this.crystals()]);
-    return { exportedAt: new Date().toISOString(), points: points.map(({ id, title, lat, lng, descriptionHistory, baseXp, baseCoins, geofenceRadiusM, visibility, category }) => ({ id, title, lat, lng, descriptionHistory, baseXp, baseCoins, geofenceRadiusM, visibility, category: category.code })), shop: items, crystals: crystals.map(({ id, lat, lng, reward, pickedAt }) => ({ id, lat, lng, reward, pickedAt })) };
+    const upgrades = await this.upgradeSettings();
+    return { exportedAt: new Date().toISOString(), points: points.map(({ id, title, lat, lng, descriptionHistory, baseXp, baseCoins, baseCrystals, geofenceRadiusM, visibility, category }) => ({ id, title, lat, lng, descriptionHistory, baseXp, baseCoins, baseCrystals, geofenceRadiusM, visibility, category: category.code })), shop: items, upgrades, crystals: crystals.map(({ id, lat, lng, reward, pickedAt }) => ({ id, lat, lng, reward, pickedAt })) };
   }
 }

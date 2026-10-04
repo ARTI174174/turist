@@ -207,6 +207,7 @@ model Poi {
   visitCount          Int           @default(0)
   baseXp              Int           @default(200)
   baseCoins           Int           @default(1000)
+  baseCrystals        Int           @default(0)
   requiresProof       Boolean       @default(false)
   geofenceRadiusM     Int           @default(30) // радиус зоны открытия в метрах — настраивается на точку (озёра/крупные объекты — 1000-3000 м)
   createdBy           String?
@@ -291,6 +292,7 @@ model Visit {
   visitAttempt    VisitAttempt @relation(fields: [visitAttemptId], references: [id])
   xpAwarded       Int
   coinsAwarded    Int
+  crystalsAwarded Int           @default(0)
   note            String?      // личная заметка игрока об этом месте, до 50 символов (валидация на уровне API)
   visitedAt       DateTime     @default(now())
 
@@ -364,6 +366,17 @@ model ShopItem {
   inventoryItems InventoryItem[]
 
   @@map("shop_items")
+}
+
+model ShopUpgradeConfig {
+  id          String @id @default(uuid())
+  kind        String
+  level       Int
+  effectValue Int
+  priceCoins  Int
+
+  @@unique([kind, level])
+  @@map("shop_upgrade_config")
 }
 
 model InventoryItem {

@@ -124,7 +124,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
             wallet: {
               ...user.wallet,
               coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
-              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.secretDiscovery?.crystals ?? 0),
+              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.crystalsAwarded ?? res.secretDiscovery?.crystals ?? 0),
             },
           });
         }
@@ -272,7 +272,7 @@ function ExploreControls({
         <Sparkles className="text-amber" size={28} />
         <p className="font-display text-lg text-forest">Точка открыта!</p>
         <p className="font-mono text-sm text-ink/70">
-          +{reward.xpAwarded ?? 0} баллов · +{reward.coinsAwarded ?? 0} монет
+          +{reward.xpAwarded ?? 0} опыта · +{reward.coinsAwarded ?? 0} золота · +{reward.crystalsAwarded ?? 0} 💎
         </p>
         {reward.newMilestones && reward.newMilestones.length > 0 && (
           <div className="mt-1 space-y-1">
