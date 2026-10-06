@@ -14,6 +14,7 @@
 //   {
 //     title: 'Название точки',
 //     categoryCode: 'mountain', // см. список кодов категорий ниже
+//     markerFixedSize: 0,       // 0 — метка уменьшается при отдалении; 1 — всегда полного размера (например, спонсорская)
 //     lat: 55.1234,             // широта (первое число из Яндекс/Google Карт)
 //     lng: 60.5678,             // долгота (второе число)
 //     geofenceRadiusM: 30,      // радиус зоны открытия в метрах:
@@ -69,6 +70,7 @@
 export interface PoiSeedData {
   title: string;
   categoryCode: string;
+  markerFixedSize?: 0 | 1;
   lat: number;
   lng: number;
   geofenceRadiusM: number;

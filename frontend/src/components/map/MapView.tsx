@@ -226,98 +226,88 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
       const zoom = map.getZoom();
-      const settlement = (poi: Poi) => ['city', 'township', 'village'].includes(poi.category?.code ?? '');
       const importantCategories = new Set(['mountain', 'trail', 'lake', 'park', 'museum', 'historic']);
 
       for (const poi of pois) {
-      if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
-      const isSettlement = settlement(poi);
-      const zoomToShow = importantCategories.has(poi.category?.code ?? '') ? 8.5 : 9.5;
-      if (!isSettlement && zoom < zoomToShow) continue;
-      // Size the actual map button so neighboring hit areas shrink together
-      // with the artwork. Never grow beyond its original 46 × 56 px size.
-      const scale = isSettlement ? 1 : Math.max(0.25, Math.min(1, 0.25 + (zoom - 7) * 0.15));
+        if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
+        const fixedSize = poi.markerFixedSize === 1;
+        const zoomToShow = fixedSize ? 7 : importantCategories.has(poi.category?.code ?? '') ? 8.5 : 10.5;
+        if (zoom < zoomToShow) continue;
+        // Scale the actual marker element and image together. At distant zooms
+        // investigated locations become small; they never exceed 46 × 56 px.
+        const scale = fixedSize ? 1 : Math.max(0.2, Math.min(1, (zoom - 6) / 9));
 
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.setAttribute('aria-label', poi.title);
-      el.title = poi.title;
-      Object.assign(el.style, {
-        display: 'block',
-        width: `${46 * scale}px`,
-        height: `${56 * scale}px`,
-        padding: '0',
-        border: '0',
-        borderRadius: '0',
-        background: 'transparent',
-        boxShadow: 'none',
-        cursor: 'pointer',
-        zIndex: String(POI_MARKER_PRIORITY[poi.category?.code ?? ''] ?? 10),
-        overflow: 'visible',
-      });
-      el.dataset.poiCategory = poi.category?.code ?? '';
-      const markerArt = document.createElement('div');
-      markerArt.className = 'poi-marker-art';
-      Object.assign(markerArt.style, {
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-      });
-      // Use an actual image element: CSS background styles and blend modes on
-      // map buttons made the illustrated pins look like tiny dark circles.
-      const categoryCode = poi.category?.code;
-      const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
-        : categoryCode ? POI_MARKERS[categoryCode] : undefined;
-      const markerAsset = markerNumber
-        ? `/assets/poi-markers/${markerNumber}.png`
-        : poi.markerAsset || poi.category?.iconAsset;
-      if (markerAsset) {
-        const image = document.createElement('img');
-        image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=3`;
-        image.alt = '';
-        image.draggable = false;
-        Object.assign(image.style, {
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.setAttribute('aria-label', poi.title);
+        el.title = poi.title;
+        Object.assign(el.style, {
           display: 'block',
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
-          pointerEvents: 'none',
+          width: `${46 * scale}px`,
+          height: `${56 * scale}px`,
+          padding: '0',
+          border: '0',
+          borderRadius: '0',
+          background: 'transparent',
+          boxShadow: 'none',
+          cursor: 'pointer',
+          zIndex: String(POI_MARKER_PRIORITY[poi.category?.code ?? ''] ?? 10),
+          overflow: 'visible',
         });
-        markerArt.appendChild(image);
-      }
-      if (poi.flag) {
-        const badge = document.createElement('div');
-        badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
-        Object.assign(badge.style, { position: 'absolute', top: `${-7 * scale}px`, right: `${-5 * scale}px`, width: `${25 * scale}px`, height: `${27 * scale}px`, borderRadius: `${7 * scale}px`, background: 'rgba(10,15,10,.88)', border: `${scale}px solid rgba(219,190,118,.8)`, boxShadow: '0 2px 5px #0008' });
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
-        const pole = document.createElementNS(svg.namespaceURI, 'line');
-        pole.setAttribute('x1', '20'); pole.setAttribute('y1', '12'); pole.setAttribute('x2', '20'); pole.setAttribute('y2', '94'); pole.setAttribute('stroke', '#f5e8c8'); pole.setAttribute('stroke-width', '7'); svg.appendChild(pole);
-        const design = Array.isArray(poi.flag.design) ? poi.flag.design as Record<string, number | string>[] : [];
-        for (const part of design) {
-          const shape = document.createElementNS(svg.namespaceURI, part.type === 'line' ? 'line' : 'circle');
-          if (part.type === 'line') { shape.setAttribute('x1', String(part.x1)); shape.setAttribute('y1', String(part.y1)); shape.setAttribute('x2', String(part.x2)); shape.setAttribute('y2', String(part.y2)); shape.setAttribute('stroke', String(part.color)); shape.setAttribute('stroke-width', '6'); }
-          else { shape.setAttribute('cx', String(part.x)); shape.setAttribute('cy', String(part.y)); shape.setAttribute('r', String(part.r)); shape.setAttribute('fill', String(part.color)); }
-          svg.appendChild(shape);
+        const markerArt = document.createElement('div');
+        Object.assign(markerArt.style, { width: '100%', height: '100%', position: 'relative' });
+        const categoryCode = poi.category?.code;
+        const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
+          : categoryCode ? POI_MARKERS[categoryCode] : undefined;
+        const markerAsset = markerNumber
+          ? `/assets/poi-markers/${markerNumber}.png`
+          : poi.markerAsset || poi.category?.iconAsset;
+        if (markerAsset) {
+          const image = document.createElement('img');
+          image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=4`;
+          image.alt = '';
+          image.draggable = false;
+          Object.assign(image.style, {
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            objectFit: 'fill',
+            pointerEvents: 'none',
+          });
+          markerArt.appendChild(image);
         }
-        if (!design.length) {
-          const flagShape = document.createElementNS(svg.namespaceURI, 'path');
-          flagShape.setAttribute('d', 'M23 12 H88 L70 38 L88 62 H23 Z'); flagShape.setAttribute('fill', '#E74C3C'); svg.appendChild(flagShape);
+        if (poi.flag) {
+          const badge = document.createElement('div');
+          badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
+          Object.assign(badge.style, { position: 'absolute', top: `${-7 * scale}px`, right: `${-5 * scale}px`, width: `${25 * scale}px`, height: `${27 * scale}px`, borderRadius: `${7 * scale}px`, background: 'rgba(10,15,10,.88)', border: `${scale}px solid rgba(219,190,118,.8)`, boxShadow: '0 2px 5px #0008' });
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+          const pole = document.createElementNS(svg.namespaceURI, 'line');
+          pole.setAttribute('x1', '20'); pole.setAttribute('y1', '12'); pole.setAttribute('x2', '20'); pole.setAttribute('y2', '94'); pole.setAttribute('stroke', '#f5e8c8'); pole.setAttribute('stroke-width', '7'); svg.appendChild(pole);
+          const design = Array.isArray(poi.flag.design) ? poi.flag.design as Record<string, number | string>[] : [];
+          for (const part of design) {
+            const shape = document.createElementNS(svg.namespaceURI, part.type === 'line' ? 'line' : 'circle');
+            if (part.type === 'line') { shape.setAttribute('x1', String(part.x1)); shape.setAttribute('y1', String(part.y1)); shape.setAttribute('x2', String(part.x2)); shape.setAttribute('y2', String(part.y2)); shape.setAttribute('stroke', String(part.color)); shape.setAttribute('stroke-width', '6'); }
+            else { shape.setAttribute('cx', String(part.x)); shape.setAttribute('cy', String(part.y)); shape.setAttribute('r', String(part.r)); shape.setAttribute('fill', String(part.color)); }
+            svg.appendChild(shape);
+          }
+          if (!design.length) {
+            const flagShape = document.createElementNS(svg.namespaceURI, 'path');
+            flagShape.setAttribute('d', 'M23 12 H88 L70 38 L88 62 H23 Z'); flagShape.setAttribute('fill', '#E74C3C'); svg.appendChild(flagShape);
+          }
+          badge.appendChild(svg); markerArt.appendChild(badge);
         }
-        badge.appendChild(svg); markerArt.appendChild(badge);
-      }
-      el.appendChild(markerArt);
+        el.appendChild(markerArt);
 
-      const marker = new Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([poi.lng, poi.lat])
-        .addTo(map);
+        const marker = new Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([poi.lng, poi.lat])
+          .addTo(map);
 
-      el.addEventListener('click', () => {
-        map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
-        onSelectPoiRef.current(poi);
-      });
-      markersRef.current.push(marker);
+        el.addEventListener('click', () => {
+          map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
+          onSelectPoiRef.current(poi);
+        });
+        markersRef.current.push(marker);
       }
     };
 
