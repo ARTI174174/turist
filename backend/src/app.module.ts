@@ -14,6 +14,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CrystalsModule } from './crystals/crystals.module';
 import { GameModule } from './game/game.module';
 import { AdminModule } from './admin/admin.module';
+import { RoutesModule } from './routes/routes.module';
+import { FlagsModule } from './flags/flags.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { AdminModule } from './admin/admin.module';
     CrystalsModule,
     GameModule,
     AdminModule,
+    RoutesModule,
+    FlagsModule,
   ],
   providers: [
     {

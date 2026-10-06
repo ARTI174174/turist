@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
 
 export const LEGACY_AVATAR_EMOJIS = [
   '🙂', '😎', '🥳', '🤠', '🧗', '🏕️', '⛰️', '🌲', '🦊', '🐺',
@@ -28,4 +28,16 @@ export class RegisterDto {
   @IsString()
   @IsIn([...FREE_AVATARS, ...LEGACY_AVATAR_EMOJIS], { message: 'Недопустимый аватар' })
   avatarEmoji?: string;
+
+  @IsString()
+  @IsIn(['zyuratkul', 'nurgush', 'taganay', 'ural'], { message: 'Выберите один из доступных лагерей' })
+  campThemeId: string;
+
+  @IsString()
+  challengeId: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  challengeAnswer: number;
 }

@@ -45,7 +45,7 @@ export class PoiService {
 
     const pois = await this.prisma.poi.findMany({
       where,
-      include: { category: true },
+      include: { category: true, secretFinder: { select: { nickname: true } }, flag: { include: { user: { select: { nickname: true } } } } },
       take: 500, // защита от чрезмерно широкого bbox — клиент должен приблизить карту
     });
 
@@ -68,7 +68,7 @@ export class PoiService {
         ...(visitedIds.length > 0 ? { id: { notIn: visitedIds } } : {}),
         visibility: 'public',
       },
-      include: { category: true },
+      include: { category: true, secretFinder: { select: { nickname: true } }, flag: { include: { user: { select: { nickname: true } } } } },
     });
 
     return candidates
@@ -83,7 +83,7 @@ export class PoiService {
   async findById(id: string) {
     const poi = await this.prisma.poi.findUnique({
       where: { id },
-      include: { category: true, media: { where: { moderationStatus: 'approved' } } },
+      include: { category: true, secretFinder: { select: { nickname: true } }, flag: { include: { user: { select: { nickname: true } } } }, media: { where: { moderationStatus: 'approved' } } },
     });
     if (!poi) {
       throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });

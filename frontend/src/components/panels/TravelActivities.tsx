@@ -10,8 +10,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Modal } from '@/components/ui/Modal';
 
-interface Expedition { active: boolean; title: string; message?: string; points?: (Poi & { completed: boolean })[]; readyToClaim?: boolean; claimed?: boolean; medal?: string }
-interface Roulette { available: boolean; challenge: null | { id: string; status: string; expiresAt: string; poi: Poi } }
+interface Expedition { active: boolean; title: string; message?: string; stageIndex?: number; points?: (Poi & { completed: boolean; locked?: boolean })[]; readyToClaim?: boolean; claimed?: boolean; medal?: string }
+interface Roulette { available: boolean; remaining: number; used: number; challenge: null | { id: string; spinIndex: number; status: string; expiresAt: string; poi: Poi | null; rewardCoins: number; rewardCrystals: number } }
 
 export function TravelActivities() {
   const router = useRouter();
@@ -40,8 +40,10 @@ export function TravelActivities() {
   async function startRoulette() {
     setBusy(true); setMessage(null);
     try {
-      await api.post('/game/roulette', {});
-      if (user) updateUser({ wallet: { ...user.wallet, coinsBalance: Math.max(0, user.wallet.coinsBalance - 1000) } });
+      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => navigator.geolocation.getCurrentPosition((position) => resolve(position.coords), () => reject(new Error('Разрешите доступ к геолокации, чтобы выбрать точку в пределах 20 км.')), { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
+      const result = await api.post<{ poi: Poi | null; rewardCoins: number; rewardCrystals: number }>('/game/roulette', { lat: coords.latitude, lng: coords.longitude });
+      if (user) updateUser({ wallet: { ...user.wallet, coinsBalance: Math.max(0, user.wallet.coinsBalance - 200 + result.rewardCoins), crystalsBalance: user.wallet.crystalsBalance + result.rewardCrystals } });
+      setMessage(result.poi ? `Рулетка выбрала: ${result.poi.title}` : `Выпал приз: ${result.rewardCoins ? `${result.rewardCoins} золота` : `${result.rewardCrystals} бриллиантов`}`);
       await queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });
       setConfirmRoulette(false);
     } catch (error) { setMessage(error instanceof ApiError ? error.message : 'Не удалось запустить рулетку'); }
@@ -54,27 +56,29 @@ export function TravelActivities() {
     <div className="adventure-card rounded-2xl p-3">
       <div className="mb-2 flex items-center gap-2"><Compass size={18} className="text-brass" /><h2 className="font-display text-sm text-parchment">Великое путешествие</h2></div>
       {expedition?.active ? <>
-        <p className="mb-2 text-[11px] text-parchment/65">Открой точки маршрута до конца месяца и получи редкую медаль, 10 000 золота и 100 бриллиантов.</p>
-        <div className="space-y-1.5">{expedition.points?.map((point) => <button key={point.id} onClick={() => openPoint(point)} className="flex w-full items-center gap-2 rounded-lg border border-brass/20 bg-black/15 px-2 py-1.5 text-left"><span className="flex-1 truncate text-xs text-parchment">{point.title}</span><span className={point.completed ? 'text-xs text-moss-light' : 'text-[10px] text-stone'}>{point.completed ? '✓ открыто' : 'на карте →'}</span></button>)}</div>
+        <p className="mb-2 text-[11px] text-parchment/65">Посети семь точек по очереди, по одной на этап. Следующая откроется после предыдущей. Награда: медаль, 50 000 золота и 50 бриллиантов.</p>
+        <div className="space-y-1.5">{expedition.points?.map((point, index) => <button key={point.id} onClick={() => { if (!point.locked) openPoint(point); }} disabled={point.locked} className="flex w-full items-center gap-2 rounded-lg border border-brass/20 bg-black/15 px-2 py-1.5 text-left disabled:opacity-40"><span className="w-8 shrink-0 text-[10px] text-brass">{index + 1}/7</span><span className="flex-1 truncate text-xs text-parchment">{point.title}</span><span className={point.completed ? 'text-xs text-moss-light' : point.locked ? 'text-[10px] text-stone' : 'text-[10px] text-brass'}>{point.completed ? '✓ пройдено' : point.locked ? 'закрыто' : 'текущий этап →'}</span></button>)}</div>
         {expedition.claimed ? <p className="mt-2 flex items-center gap-1 text-xs text-brass"><Medal size={15} /> Медаль получена: {expedition.medal}</p> : expedition.readyToClaim && <button onClick={() => void claimExpedition()} disabled={busy} className="mt-3 w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{busy ? 'Засчитываем…' : 'Получить награду'}</button>}
       </> : <p className="text-xs text-parchment/60">{expedition?.message ?? 'Маршрут готовится. Загляни сюда позже.'}</p>}
     </div>
 
     <div className="adventure-card rounded-2xl p-3">
       <div className="mb-2 flex items-center gap-2"><Sparkles size={18} className="text-brass" /><h2 className="font-display text-sm text-parchment">Рулетка путешественника</h2></div>
-      <p className="mb-2 text-[11px] text-parchment/65">Заплати 1 000 золота, получи случайную точку и посети её за 24 часа. Успех принесёт 10 000 золота. Попытка доступна раз в день.</p>
-      {!roulette ? <p className="text-xs text-stone">Загружаем…</p> : roulette.challenge ? <div className="rounded-xl border border-brass/20 bg-black/15 p-2">
-        <p className="text-xs text-parchment">{roulette.challenge.poi.title}</p>
-        <p className="mt-1 text-[10px] text-parchment/60">{roulette.challenge.status === 'completed' ? 'Пройдено — награда получена' : roulette.challenge.status === 'expired' ? 'Срок вышел — золото не возвращается' : `Успей до ${new Date(roulette.challenge.expiresAt).toLocaleString('ru-RU')}`}</p>
-        {roulette.challenge.status === 'active' && <button onClick={() => openPoint(roulette.challenge!.poi)} className="mt-2 text-xs text-brass">Показать точку на карте →</button>}
-      </div> : roulette.available ? <button onClick={() => setConfirmRoulette(true)} className="w-full rounded-full border border-brass/50 py-2 text-xs text-brass">Запустить за 1 000 золота</button> : <p className="text-xs text-stone">Рулетка сегодня уже использована.</p>}
+      <p className="mb-2 text-[11px] text-parchment/65">200 золота за попытку · до 10 раз за календарный день. Обычно выпадает новая точка в радиусе 20 км: успей открыть её за 24 часа и получи +5 золота и +5 опыта. Иногда вместо точки выпадает денежный приз.</p>
+      {!roulette ? <p className="text-xs text-stone">Загружаем…</p> : <>
+        {roulette.challenge && <div className="mb-2 rounded-xl border border-brass/20 bg-black/15 p-2">
+          <p className="text-[10px] text-brass">Попытка {roulette.challenge.spinIndex}</p>
+          {roulette.challenge.poi ? <><p className="text-xs text-parchment">{roulette.challenge.poi.title}</p><p className="mt-1 text-[10px] text-parchment/60">{roulette.challenge.status === 'completed' ? 'Точка открыта · +5 золота и +5 опыта' : roulette.challenge.status === 'expired' ? 'Срок вышел' : `Успей до ${new Date(roulette.challenge.expiresAt).toLocaleString('ru-RU')}`}</p>{roulette.challenge.status === 'active' && <button onClick={() => openPoint(roulette.challenge!.poi!)} className="mt-2 text-xs text-brass">Показать точку на карте →</button>}</> : <p className="text-xs text-parchment">{roulette.challenge.rewardCoins ? `Приз: ${roulette.challenge.rewardCoins.toLocaleString('ru-RU')} золота` : `Приз: ${roulette.challenge.rewardCrystals} 💎`}</p>}
+        </div>}
+        {roulette.available ? <button onClick={() => setConfirmRoulette(true)} className="w-full rounded-full border border-brass/50 py-2 text-xs text-brass">Крутить за 200 золота · осталось {roulette.remaining}</button> : <p className="text-xs text-stone">Попытки на сегодня закончились.</p>}
+      </>}
     </div>
     {message && <p className="rounded-xl bg-moss/15 p-2 text-center text-xs text-parchment">{message}</p>}
     {confirmRoulette && <Modal title="Рулетка путешественника" onClose={() => setConfirmRoulette(false)}><div className="text-center">
       <Sparkles size={32} className="mx-auto mb-2 text-brass" />
-      <p className="text-sm text-parchment">Суперигра путешественника: получи случайную точку на карте. Посети её в течение 24 часов и выиграй 10 000 золота.</p>
-      <p className="mt-2 text-xs text-parchment/60">Вход стоит 1 000 золота. Если не успеешь, золото сгорит. Играть можно раз в день.</p>
-      <button onClick={() => void startRoulette()} disabled={busy} className="mt-4 w-full rounded-full bg-moss py-3 text-sm text-parchment">{busy ? 'Запускаем…' : 'Крутим за 1 000 золота'}</button>
+      <p className="text-sm text-parchment">В 94% случаев выпадет новая точка поблизости. Успей посетить её за 24 часа — получишь +5 золота и опыта. Редкие призы: 5 000 золота (5%), 10 000 (0,5%), 10 бриллиантов (0,4%) или 50 000 золота (0,1%).</p>
+      <p className="mt-2 text-xs text-parchment/60">Одна попытка стоит 200 золота. Можно крутить до 10 раз в день.</p>
+      <button onClick={() => void startRoulette()} disabled={busy} className="mt-4 w-full rounded-full bg-moss py-3 text-sm text-parchment">{busy ? 'Запускаем…' : 'Крутим за 200 золота'}</button>
     </div></Modal>}
   </section>;
 }

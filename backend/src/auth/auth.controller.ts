@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -16,6 +16,10 @@ export class AuthController {
     private authService: AuthService,
     private prisma: PrismaService,
   ) {}
+
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Get('register-challenge')
+  registerChallenge() { return this.authService.createRegisterChallenge(); }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')

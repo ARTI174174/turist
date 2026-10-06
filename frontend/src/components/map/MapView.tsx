@@ -18,6 +18,7 @@ interface MapViewProps {
 export interface MapViewHandle {
   /** Центрирует карту на текущей позиции игрока (кнопка "Я" на карте). */
   recenterOnUser: () => void;
+  focusOnPoi: (poi: Poi) => void;
   zoomIn: () => void;
   zoomOut: () => void;
 }
@@ -28,6 +29,9 @@ const MAP_STYLE = 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style
 // Keep marker selection on the client as well as in the seed. This lets the
 // new art appear immediately even while an older API/database seed is live.
 const POI_MARKERS: Record<string, number> = {
+  city: 1,
+  township: 11,
+  trail: 10,
   lake: 12,
   mountain: 2,
   river: 10,
@@ -73,6 +77,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   }, [onSelectPoi, onSelectCrystal]);
 
   useImperativeHandle(ref, () => ({
+    focusOnPoi: (poi) => {
+      const map = mapRef.current;
+      if (map) map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
+    },
     recenterOnUser: () => {
       const map = mapRef.current;
       if (map && position) {
@@ -216,8 +224,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       // Use an actual image element: CSS background styles and blend modes on
       // map buttons made the illustrated pins look like tiny dark circles.
       const categoryCode = poi.category?.code;
-      const markerNumber = categoryCode === 'historic' && poi.geofenceRadiusM >= 2500
-        ? 1
+      const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
         : categoryCode ? POI_MARKERS[categoryCode] : undefined;
       const markerAsset = markerNumber
         ? `/assets/poi-markers/${markerNumber}.png`
@@ -237,12 +244,36 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         });
         el.appendChild(image);
       }
+      if (poi.flag) {
+        const badge = document.createElement('div');
+        badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
+        Object.assign(badge.style, { position: 'absolute', top: '-7px', right: '-5px', width: '25px', height: '27px', borderRadius: '7px', background: 'rgba(10,15,10,.88)', border: '1px solid rgba(219,190,118,.8)', boxShadow: '0 2px 5px #0008' });
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+        const pole = document.createElementNS(svg.namespaceURI, 'line');
+        pole.setAttribute('x1', '20'); pole.setAttribute('y1', '12'); pole.setAttribute('x2', '20'); pole.setAttribute('y2', '94'); pole.setAttribute('stroke', '#f5e8c8'); pole.setAttribute('stroke-width', '7'); svg.appendChild(pole);
+        const design = Array.isArray(poi.flag.design) ? poi.flag.design as Record<string, number | string>[] : [];
+        for (const part of design) {
+          const shape = document.createElementNS(svg.namespaceURI, part.type === 'line' ? 'line' : 'circle');
+          if (part.type === 'line') { shape.setAttribute('x1', String(part.x1)); shape.setAttribute('y1', String(part.y1)); shape.setAttribute('x2', String(part.x2)); shape.setAttribute('y2', String(part.y2)); shape.setAttribute('stroke', String(part.color)); shape.setAttribute('stroke-width', '6'); }
+          else { shape.setAttribute('cx', String(part.x)); shape.setAttribute('cy', String(part.y)); shape.setAttribute('r', String(part.r)); shape.setAttribute('fill', String(part.color)); }
+          svg.appendChild(shape);
+        }
+        if (!design.length) {
+          const flagShape = document.createElementNS(svg.namespaceURI, 'path');
+          flagShape.setAttribute('d', 'M23 12 H88 L70 38 L88 62 H23 Z'); flagShape.setAttribute('fill', '#E74C3C'); svg.appendChild(flagShape);
+        }
+        badge.appendChild(svg); el.appendChild(badge);
+      }
 
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
-      el.addEventListener('click', () => onSelectPoiRef.current(poi));
+      el.addEventListener('click', () => {
+        map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
+        onSelectPoiRef.current(poi);
+      });
       markersRef.current.push(marker);
     }
   }, [pois, mapReady]);

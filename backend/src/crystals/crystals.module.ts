@@ -24,6 +24,10 @@ class CrystalsController {
   ) {
     return this.crystalsService.collect(user.userId, id, dto.lat, dto.lng);
   }
+
+  @Get('magnet/status') magnetStatus(@CurrentUser() user: CurrentUserPayload) { return this.crystalsService.magnetStatus(user.userId); }
+  @Post('magnet/upgrade') upgradeMagnet(@CurrentUser() user: CurrentUserPayload) { return this.crystalsService.upgradeMagnet(user.userId); }
+  @Post('magnet/collect') collectWithMagnet(@CurrentUser() user: CurrentUserPayload, @Body() dto: CollectCrystalDto) { return this.crystalsService.collectWithMagnet(user.userId, dto.lat, dto.lng); }
 }
 
 @Module({

@@ -2,8 +2,8 @@
 // КАТАЛОГ ТОЧЕК ИНТЕРЕСА «ТУРИСТ»
 // ============================================================
 //
-// Это единственный файл, который нужно редактировать, чтобы
-// добавить новую точку на карту или поправить существующую.
+// Здесь добавляются точки существующих категорий. Новая категория требует
+// изменений в seed.ts и frontend/src/components/map/MapView.tsx.
 //
 // КАК ДОБАВИТЬ НОВУЮ ТОЧКУ:
 // Скопируй блок ниже (между { и },) в конец массива POI_CATALOG
@@ -28,7 +28,7 @@
 //     baseXp: 300,              // опыт за посещение
 //     baseCoins: 300,            // золото за посещение
 //     baseCrystals: 0,           // бриллианты за посещение
-//     requiresProof: false,     // true — потребует фото/QR для подтверждения (для ценных/удалённых мест)
+//     requiresProof: false,     // фото/QR сейчас не проверяются сервисом посещений
 //   },
 //
 // КОДЫ КАТЕГОРИЙ (влияют на цвет маркера на карте):
@@ -39,6 +39,9 @@
 //   cave      — пещера                (серый)
 //   rare      — редкое/необычное место (фиолетовый)
 //   museum    — музей/зоопарк         (светло-зелёный)
+//   city      — город, маркер 1; 100 XP и 100 золота
+//   township  — посёлок, маркер 11; 100 XP и 100 золота
+//   trail     — пешая тропа / маршрутная точка, маркер 10; 300 XP и 400 золота
 //   historic  — историческое место    (жёлтый)
 //   monument  — памятник/собор/площадь (оранжевый)
 //   park      — парк/нацпарк/заповедник (зелёный)
@@ -81,6 +84,439 @@ export interface PoiSeedData {
 }
 
 export const POI_CATALOG: PoiSeedData[] = [
+
+  // Пешие маршруты и их ориентиры. Посещение точки не подтверждает весь трек.
+  // Тропа из списка №1. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Тропа «Круглица» — вход, Центральная усадьба национального парка «Таганай»",
+    "categoryCode": "trail",
+    "lat": 55.22139,
+    "lng": 59.73171,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Начальная точка пешего путешествия к Круглице в национальном парке «Таганай». Здесь находится визит-центр Центральной усадьбы.",
+    "interestingFacts": [
+      "Паспорт маршрута предусматривает возвращение к той же усадьбе.",
+      "Далее путь проходит через Горбатый мост и приют «Белый ключ»."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №2. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Тропа «К Круглице» — Горбатый мост",
+    "categoryCode": "trail",
+    "lat": 55.25159,
+    "lng": 59.75643,
+    "geofenceRadiusM": 60,
+    "descriptionHistory": "Горбатый мост — ориентир на пути от Центральной усадьбы к приютам Таганая.",
+    "interestingFacts": [
+      "Следующая остановка в нитке маршрута — «Белый ключ».",
+      "В паспорте у моста указаны площадка отдыха и указатели."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "medium",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №3. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Верхняя тропа Таганая — приют «Белый ключ»",
+    "categoryCode": "trail",
+    "lat": 55.26437,
+    "lng": 59.7779,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Приют «Белый ключ» — место остановки на пешем пути к Круглице.",
+    "interestingFacts": [
+      "Приют включён в прямой и обратный путь маршрута.",
+      "Следом за ним маршрут проходит через «Гремучий ключ»."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "medium",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №4. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Верхняя тропа Таганая — приют «Гремучий ключ»",
+    "categoryCode": "trail",
+    "lat": 55.27723,
+    "lng": 59.79587,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "«Гремучий ключ» — туристический приют на маршруте к Круглице.",
+    "interestingFacts": [
+      "В нитке маршрута он расположен после «Белого ключа».",
+      "Паспорт перечисляет здесь туристические дома и места для палаток."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "medium",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №5. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Тропа «К Круглице» — Майские поляны",
+    "categoryCode": "trail",
+    "lat": 55.29624,
+    "lng": 59.81558,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Майские поляны — промежуточный ориентир пешего пути к Круглице.",
+    "interestingFacts": [
+      "Поляны следуют за приютом «Гремучий ключ» в нитке маршрута.",
+      "Далее путь ведёт к Долине сказок."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "hard",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №6. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
+  {
+    "title": "Тропа «К Круглице» — Долина сказок",
+    "categoryCode": "trail",
+    "lat": 55.31026,
+    "lng": 59.83351,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Долина сказок — природный ориентир перед завершающим подъёмом к Круглице.",
+    "interestingFacts": [
+      "Долина включена в прямой и обратный путь маршрута.",
+      "Перед ней туристы проходят Майские поляны."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "hard",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №11. Источники: https://profsobranie.ru/assets/files/2023/rt-2-2023/56-70.pdf
+  {
+    "title": "Нижняя тропа Таганая — приют «Таганай»",
+    "categoryCode": "trail",
+    "lat": 55.30192,
+    "lng": 59.85883,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Приют «Таганай» — остановка для пеших путешественников среди достопримечательностей национального парка. Отсюда планируют выходы к Круглице и Долине сказок.",
+    "interestingFacts": [
+      "В исследовании 2023 года расстояние от приюта до Круглицы указано как 3 км.",
+      "До Долины сказок в той же таблице указано 4,5 км."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "hard",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №12. Источники: https://profsobranie.ru/assets/files/2023/rt-2-2023/56-70.pdf
+  {
+    "title": "Нижняя тропа Таганая — Киалимский кордон",
+    "categoryCode": "trail",
+    "lat": 55.34307,
+    "lng": 59.93305,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Киалимский кордон служит ориентиром пеших походов к Ицылу и Дальнему Таганаю. Это удалённая остановка в сети приютов национального парка.",
+    "interestingFacts": [
+      "В исследовании 2023 года Ицыл указан в 3 км от кордона.",
+      "Метеостанция «Таганай-гора» указана в 5 км от него."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "hard",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №13. Источники: https://profsobranie.ru/assets/files/2023/rt-2-2023/56-70.pdf
+  {
+    "title": "Тропа Таганай — метеостанция «Таганай-гора»",
+    "categoryCode": "trail",
+    "lat": 55.36911,
+    "lng": 59.90872,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Метеостанция «Таганай-гора» — высокогорная маршрутная точка среди тундровых участков и скальных гряд Таганая.",
+    "interestingFacts": [
+      "В описании окрестностей отмечены горная тундра и подгольцовое редколесье.",
+      "Среди ближайших скальных объектов перечислены «Кепка» и «Верблюд»."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "hard",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №14. Источники: https://base.garant.ru/413970852/ ; https://zuratkul.ru/node/12993
+  {
+    "title": "Экотропа «Тайны озера» — начало у берега озера Зюраткуль",
+    "categoryCode": "trail",
+    "lat": 54.92273,
+    "lng": 59.22666,
+    "geofenceRadiusM": 60,
+    "descriptionHistory": "Начало экотропы «Тайны озера» у Зюраткуля. Пешая прогулка знакомит с озёрным берегом и еловым лесом.",
+    "interestingFacts": [
+      "Официальная протяжённость маршрута — 3 км.",
+      "В описании парка на прогулку отведено около двух часов."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №15. Источники: https://base.garant.ru/413970852/ ; https://zuratkul.ru/node/12993
+  {
+    "title": "Экотропа «Тайны озера» — начало деревянного настила",
+    "categoryCode": "trail",
+    "lat": 54.9205,
+    "lng": 59.22924,
+    "geofenceRadiusM": 60,
+    "descriptionHistory": "Начало деревянного настила на экотропе «Тайны озера». Настил помогает пройти лесной участок прогулки вдоль Зюраткуля.",
+    "interestingFacts": [
+      "Начало настила выделено отдельной GPS-точкой в паспорте маршрута.",
+      "Маршрут проходит без набора высоты."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №16. Источники: https://base.garant.ru/413970852/ ; https://zuratkul.ru/node/12993
+  {
+    "title": "Экотропа «Тайны озера» — конец деревянного настила",
+    "categoryCode": "trail",
+    "lat": 54.91326,
+    "lng": 59.22497,
+    "geofenceRadiusM": 60,
+    "descriptionHistory": "Конец деревянного настила на экотропе «Тайны озера». Это самостоятельный ориентир прогулки по лесному побережью Зюраткуля.",
+    "interestingFacts": [
+      "Конец настила указан отдельной точкой в паспорте экотропы.",
+      "С площадок у воды видны горы национального парка."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №17. Источники: https://zuratkul.ru/sites/default/files/Паспорт%20маршрута%20экотропа%20Малая%20медвежья_0.PDF ; https://zuratkul.ru/node/12977
+  {
+    "title": "Малая Медвежья тропа — вход в районе посёлка Зюраткуль",
+    "categoryCode": "trail",
+    "lat": 54.926589,
+    "lng": 59.226812,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Вход на «Малую медвежью» тропу в посёлке Зюраткуль. Путь ведёт через тайгу и субальпийские луга к горной тундре хребта.",
+    "interestingFacts": [
+      "Парк указывает 11 км на полный маршрут с возвращением.",
+      "Первые 3 км оборудованы деревянным настилом."
+    ],
+    "bestSeason": [
+      "summer",
+      "autumn"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №18. Источники: https://base.garant.ru/413970720/ ; https://zuratkul.ru/sites/default/files/Паспорт%20маршрута%20экотропа%20Малая%20медвежья_0.PDF ; https://zuratkul.ru/node/12977
+  {
+    "title": "Большая Уральская тропа — хребет Зюраткуль",
+    "categoryCode": "mountain",
+    "lat": 54.95628,
+    "lng": 59.17932,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Вершинная точка хребта Зюраткуль на Большой Уральской тропе. Подъём выводит путешественника из леса в горную тундру.",
+    "interestingFacts": [
+      "Эта же вершина служит целью экотропы «Малая медвежья».",
+      "В паспорте «Малой медвежьей» указана высота 1175 м."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "hard",
+    "baseXp": 500,
+    "baseCoins": 1000,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №19. Источники: https://base.garant.ru/413970720/
+  {
+    "title": "Большая Уральская тропа — гора Большой Нургуш",
+    "categoryCode": "mountain",
+    "lat": 54.82085,
+    "lng": 59.14702,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Большой Нургуш — горная цель Большой Уральской тропы. Вершинное плато занято тундровой растительностью. По паспорту БУТ участки подхода и спуска требуют инструктора-проводника.",
+    "interestingFacts": [
+      "Высота — 1406 м, это высшая отметка Челябинской области.",
+      "На вершинах встречаются кварцитовые останцы."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "hard",
+    "baseXp": 500,
+    "baseCoins": 1000,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №20. Источники: https://base.garant.ru/413970720/
+  {
+    "title": "Большая Уральская тропа — хребет Большой Москаль",
+    "categoryCode": "mountain",
+    "lat": 54.82993,
+    "lng": 59.03233,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Большой Москаль — горный участок Большой Уральской тропы, связанный с кордоном «У трёх вершин».",
+    "interestingFacts": [
+      "Высшая точка хребта — Большая Калагаза, 1048 м.",
+      "В паспорт БУТ включён выход на хребет с возвращением к кордону."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "hard",
+    "baseXp": 500,
+    "baseCoins": 1000,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №21. Источники: https://base.garant.ru/413970720/
+  {
+    "title": "Большая Уральская тропа — гора Большой Уван",
+    "categoryCode": "mountain",
+    "lat": 54.81765,
+    "lng": 58.93035,
+    "geofenceRadiusM": 80,
+    "descriptionHistory": "Большой Уван — каменистая гора на Большой Уральской тропе.",
+    "interestingFacts": [
+      "Высота горы — 1222 м.",
+      "Для вершины характерны кварцитовые останцы и россыпи."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "hard",
+    "baseXp": 500,
+    "baseCoins": 1000,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №22. Источники: https://base.garant.ru/413970720/
+  {
+    "title": "Большая Уральская тропа — кордон «У трёх вершин»",
+    "categoryCode": "trail",
+    "lat": 54.8161,
+    "lng": 59.00132,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Кордон «У трёх вершин» — опорная остановка Большой Уральской тропы.",
+    "interestingFacts": [
+      "Нитка маршрута предусматривает здесь несколько ночёвок.",
+      "От кордона предусмотрены выходы к Большому Москалю и Большому Увану."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 400,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
+  // Тропа из списка №23. Источники: https://base.garant.ru/413970720/ ; https://zuratkul.ru/node/12975
+  {
+    "title": "Большая Уральская тропа — село Тюлюк",
+    "categoryCode": "village",
+    "lat": 54.60607,
+    "lng": 58.78091,
+    "geofenceRadiusM": 100,
+    "descriptionHistory": "Село Тюлюк — конечный населённый пункт в паспорте маршрута «Большая Уральская Тропа. Зюраткуль».",
+    "interestingFacts": [
+      "Предыдущий участок проходит от реки Большой Березяк.",
+      "Парк также предусматривает варианты путешествия со стартом из Тюлюка."
+    ],
+    "bestSeason": [
+      "summer"
+    ],
+    "difficulty": "easy",
+    "baseXp": 100,
+    "baseCoins": 100,
+    "baseCrystals": 0,
+    "requiresProof": false
+  },
+
 
 // P0049 · pamyatniki_prirody_chelyabinskaya_oblast.txt · источники: раздел D
 {
@@ -1673,7 +2109,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Челябинск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat:  55.160058,
   lng:  61.402052,
   geofenceRadiusM: 13000,
@@ -1691,7 +2127,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Магнитогорск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 53.42,
   lng: 59.05,
   geofenceRadiusM: 13000,
@@ -1709,7 +2145,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Златоуст',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.17,
   lng: 59.65,
   geofenceRadiusM: 4000,
@@ -1727,7 +2163,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Копейск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.12,
   lng: 61.63,
   geofenceRadiusM: 3500,
@@ -1745,7 +2181,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Миасс',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.05,
   lng: 60.11,
   geofenceRadiusM: 4000,
@@ -1763,7 +2199,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Озёрск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.76,
   lng: 60.7,
   geofenceRadiusM: 4000,
@@ -1781,7 +2217,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Снежинск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 56.09,
   lng: 60.73,
   geofenceRadiusM: 3500,
@@ -1799,7 +2235,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Троицк',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.1,
   lng: 61.58,
   geofenceRadiusM: 3500,
@@ -1817,7 +2253,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Кыштым',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.71,
   lng: 60.56,
   geofenceRadiusM: 3500,
@@ -1835,7 +2271,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Коркино',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.89,
   lng: 61.4,
   geofenceRadiusM: 2500,
@@ -1853,7 +2289,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Южноуральск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.44,
   lng: 61.26,
   geofenceRadiusM: 2500,
@@ -1871,7 +2307,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Трёхгорный',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.81,
   lng: 58.45,
   geofenceRadiusM: 2500,
@@ -1889,7 +2325,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Аша',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.99,
   lng: 57.29,
   geofenceRadiusM: 2500,
@@ -1907,7 +2343,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Еманжелинск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.76,
   lng: 61.32,
   geofenceRadiusM: 2500,
@@ -1925,7 +2361,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Верхний Уфалей',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 56.06,
   lng: 60.23,
   geofenceRadiusM: 2500,
@@ -1943,7 +2379,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Карталы',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 53.05,
   lng: 60.65,
   geofenceRadiusM: 3000,
@@ -1961,7 +2397,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Касли',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.89,
   lng: 60.76,
   geofenceRadiusM: 2500,
@@ -1979,7 +2415,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Катав-Ивановск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.75,
   lng: 58.2,
   geofenceRadiusM: 2500,
@@ -1997,7 +2433,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Пласт',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.37,
   lng: 60.82,
   geofenceRadiusM: 2500,
@@ -2015,7 +2451,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Сатка',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.064320,
   lng: 59.04,
   geofenceRadiusM: 6300,
@@ -2033,7 +2469,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Чебаркуль',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.977790,
   lng: 60.370120,
   geofenceRadiusM: 6300,
@@ -2051,7 +2487,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Куса',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.34,
   lng: 59.44,
   geofenceRadiusM: 2500,
@@ -2069,7 +2505,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Сим',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.99,
   lng: 57.68,
   geofenceRadiusM: 2500,
@@ -2087,7 +2523,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Миньяр',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.07,
   lng: 57.56,
   geofenceRadiusM: 2000,
@@ -2105,7 +2541,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Нязепетровск',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 56.05,
   lng: 59.61,
   geofenceRadiusM: 2500,
@@ -2123,7 +2559,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Юрюзань',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.85,
   lng: 58.43,
   geofenceRadiusM: 2500,
@@ -2141,7 +2577,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Карабаш',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 55.49,
   lng: 60.22,
   geofenceRadiusM: 2000,
@@ -2159,7 +2595,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Бакал',
-  categoryCode: 'historic',
+  categoryCode: 'city',
   lat: 54.94,
   lng: 58.8,
   geofenceRadiusM: 2500,
@@ -2177,7 +2613,7 @@ export const POI_CATALOG: PoiSeedData[] = [
 },
 {
   title: 'Локомотивный',
-  categoryCode: 'historic',
+  categoryCode: 'township',
   lat: 53.03,
   lng: 60.14,
   geofenceRadiusM: 2000,

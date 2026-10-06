@@ -13,6 +13,7 @@ import { AvatarImage } from '@/components/character/AvatarImage';
 import { POICard } from '@/components/map/POICard';
 import { ChevronRight } from 'lucide-react';
 import { TravelActivities } from '@/components/panels/TravelActivities';
+import { RouteSuggestions } from '@/components/panels/RouteSuggestions';
 
 interface PassportVisit {
   id: string;
@@ -35,6 +36,7 @@ export default function PassportPage() {
   const user = useAuthStore((s) => s.user);
   const [hydrated, setHydrated] = useState(false);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
+  const [placeFilter, setPlaceFilter] = useState<'all' | 'mountain' | 'city' | 'lake'>('all');
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
@@ -52,6 +54,13 @@ export default function PassportPage() {
   const xp = user.progress?.xp ?? 0;
   const { level } = resolveLevel(xp);
   const totalKm = 0; // placeholder — считать по факту переходов между точками, следующий шаг
+  const filteredVisits = visits.filter(({ poi }) => {
+    const code = poi.category?.code;
+    if (placeFilter === 'all') return true;
+    if (placeFilter === 'mountain') return code === 'mountain';
+    if (placeFilter === 'lake') return code === 'lake';
+    return ['city', 'township', 'village'].includes(code);
+  });
 
   return (
     <main className="relative h-full w-full overflow-hidden bg-forest-dark">
@@ -70,17 +79,22 @@ export default function PassportPage() {
         </div>
 
         <TravelActivities />
+        <RouteSuggestions />
 
         <p className="mb-2 font-display text-sm text-ink">Посещённые места</p>
         <p className="mb-3 text-xs text-stone">Сначала самые сложные — так интереснее вспоминать поход</p>
 
+        <div className="mb-3 grid grid-cols-4 gap-1 rounded-full border border-brass/25 bg-black/15 p-1">
+          {([['all', 'Все'], ['mountain', 'Горы'], ['city', 'Города'], ['lake', 'Озёра']] as const).map(([key, title]) => <button key={key} onClick={() => setPlaceFilter(key)} className={`rounded-full px-2 py-1.5 text-[10px] ${placeFilter === key ? 'bg-moss text-parchment' : 'text-stone'}`}>{title}</button>)}
+        </div>
+
         <div className="space-y-3">
-          {visits.map((v) => (
+          {filteredVisits.map((v) => (
             <VisitCard key={v.id} visit={v} onOpen={() => setSelectedPoi(v.poi)} />
           ))}
-          {visits.length === 0 && (
+          {filteredVisits.length === 0 && (
             <p className="adventure-card rounded-2xl p-4 text-center text-sm text-stone">
-              Пока ни одного места — отправляйся в поход!
+              {visits.length === 0 ? 'Пока ни одного места — отправляйся в поход!' : 'В этой группе пока нет посещённых мест.'}
             </p>
           )}
         </div>
@@ -149,6 +163,27 @@ function VisitCard({ visit, onOpen }: { visit: PassportVisit; onOpen: () => void
           {note ? `📝 ${note}` : '+ добавить заметку'}
         </button>
       )}
+
+      <PlaceFlagButton poiId={visit.poi.id} />
     </div>
   );
+}
+
+function PlaceFlagButton({ poiId }: { poiId: string }) {
+  const queryClient = useQueryClient(); const { data } = useQuery<{ owned: boolean; placedPoiId: string | null }>({ queryKey: ['flags', 'design'], queryFn: () => api.get('/flags/design') });
+  const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null);
+  if (!data?.owned) return null;
+  const current = data;
+  async function toggle() {
+    setBusy(true); setMessage(null);
+    try {
+      if (current.placedPoiId === poiId) await api.delete(`/flags/${poiId}`);
+      else await api.post(`/flags/${poiId}`, {});
+      await queryClient.invalidateQueries({ queryKey: ['flags', 'design'] });
+      await queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
+      setMessage(current.placedPoiId === poiId ? 'Флаг вернулся в лагерь.' : 'Флаг оставлен на точке до её посещения другим игроком.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Не удалось разместить флаг'); }
+    finally { setBusy(false); }
+  }
+  return <div className="mt-2 flex items-center justify-between gap-2"><button onClick={() => void toggle()} disabled={busy} className="text-[10px] text-brass disabled:opacity-50">{busy ? '…' : current.placedPoiId === poiId ? 'Забрать флаг в лагерь' : 'Оставить флаг здесь'}</button>{message && <span className="text-right text-[9px] text-moss-light">{message}</span>}</div>;
 }

@@ -17,7 +17,7 @@ interface PoiComment {
 }
 
 interface ExtendedVisitResult extends VisitCompleteResult {
-  secretDiscovery?: { coins: number; crystals: number };
+  secretDiscovery?: { xp: number; coins: number };
   rouletteReward?: number;
 }
 
@@ -124,7 +124,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
             wallet: {
               ...user.wallet,
               coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
-              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.crystalsAwarded ?? res.secretDiscovery?.crystals ?? 0),
+              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.crystalsAwarded ?? 0),
             },
           });
         }
@@ -175,6 +175,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
             {poi.category.title}
           </span>
           <h2 className="font-display text-lg text-ink">{poi.title}</h2>
+          {poi.secretFoundAt && poi.secretFinder?.nickname && <p className="text-[10px] text-brass">Первым исследовал: {poi.secretFinder.nickname}</p>}
         </div>
         <button onClick={onClose} aria-label="Закрыть" className="rounded-full p-2 text-parchment/60 hover:bg-white/10">
           <X size={20} />

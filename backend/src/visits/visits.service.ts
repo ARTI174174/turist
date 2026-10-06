@@ -19,7 +19,7 @@ export class VisitsService {
 
   /** FR-EXP-01: старт попытки посещения, проверка геозоны. */
   async startAttempt(userId: string, dto: StartAttemptDto) {
-    const poi = await this.prisma.poi.findUnique({ where: { id: dto.poiId } });
+    const poi = await this.prisma.poi.findUnique({ where: { id: dto.poiId }, include: { category: true } });
     if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
     if (poi.visibility === 'secret' && poi.secretFoundAt) throw new BadRequestException({ code: 'SECRET_ALREADY_FOUND', message: 'Эту секретную точку уже нашёл другой путешественник.' });
 
@@ -73,7 +73,7 @@ export class VisitsService {
   /** FR-EXP-01/07: периодическое подтверждение нахождения в геозоне (dwell-time). */
   async heartbeat(userId: string, attemptId: string, dto: HeartbeatDto) {
     const attempt = await this.getOwnedAttempt(userId, attemptId);
-    const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId } });
+    const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId }, include: { category: true } });
 
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
     const gloves = await getUpgradeSettings(this.prisma, 'gloves');
@@ -136,7 +136,7 @@ export class VisitsService {
   /** FR-EXP-02/04/06: финализация — расчёт анти-чит скора и начисление наград. */
   async complete(userId: string, attemptId: string) {
     const attempt = await this.getOwnedAttempt(userId, attemptId);
-    const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId } });
+    const poi = await this.prisma.poi.findUniqueOrThrow({ where: { id: attempt.poiId }, include: { category: true } });
 
     if (attempt.dwellSeconds < REQUIRED_DWELL_SECONDS) {
       throw new BadRequestException({
@@ -192,14 +192,22 @@ export class VisitsService {
     }
 
     // resolution === 'verified' → начисляем награду идемпотентно
-    const xpAwarded = poi.visibility === 'secret' ? 0 : poi.baseXp;
-    const coinsAwarded = poi.visibility === 'secret' ? 0 : poi.baseCoins;
+    const isSecret = poi.visibility === 'secret';
+    const ownedBonuses = await this.prisma.inventoryItem.findMany({ where: { userId, shopItem: { name: { in: ['Фонарь путешественника', 'Палатка уральская'] } } }, select: { shopItem: { select: { name: true } } } });
+    const hasFlashlight = ownedBonuses.some(({ shopItem }) => shopItem.name === 'Фонарь путешественника');
+    const hasTent = ownedBonuses.some(({ shopItem }) => shopItem.name === 'Палатка уральская');
+    const localHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Yekaterinburg', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+    const nightBonus = hasFlashlight && localHour >= 0 && localHour < 4 ? 0.1 : 0;
+    const natureBonus = hasTent && ['lake', 'mountain', 'river', 'spring', 'cave', 'rare', 'park', 'waterfall', 'trail'].includes(poi.category?.code ?? '') ? 0.05 : 0;
+    const xpAwarded = Math.round((isSecret ? 5000 : poi.baseXp) * (1 + nightBonus));
+    const secretCoinsAwarded = isSecret ? Math.round(10000 * (1 + nightBonus)) : 0;
+    const coinsAwarded = isSecret ? 0 : Math.round(poi.baseCoins * (1 + nightBonus + natureBonus));
     const crystalsAwarded = poi.visibility === 'secret' ? 0 : poi.baseCrystals;
 
-    const isSecret = poi.visibility === 'secret';
+    const activeEvent = await this.prisma.expeditionEvent.findFirst({ where: { startsAt: { lte: new Date() }, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'desc' } });
     const visitResult = await this.prisma.$transaction(async (tx) => {
       if (isSecret) {
-        const discovery = await tx.poi.updateMany({ where: { id: poi.id, visibility: 'secret', secretFoundAt: null }, data: { secretFoundBy: userId, secretFoundAt: new Date() } });
+        const discovery = await tx.poi.updateMany({ where: { id: poi.id, visibility: 'secret', secretFoundAt: null }, data: { secretFoundBy: userId, secretFoundAt: new Date(), visibility: 'public' } });
         if (discovery.count !== 1) throw new BadRequestException({ code: 'SECRET_ALREADY_FOUND', message: 'Эту секретную точку уже нашёл другой путешественник.' });
       }
       const created = await tx.visit.create({
@@ -213,12 +221,24 @@ export class VisitsService {
         },
       });
       await tx.poi.update({ where: { id: poi.id }, data: { visitCount: { increment: 1 } } });
+      await tx.poiFlag.deleteMany({ where: { poiId: poi.id, userId: { not: userId } } });
+      if (activeEvent) {
+        const expeditionIds = activeEvent.poiIds as string[];
+        const currentStage = await tx.expeditionProgress.upsert({
+          where: { eventId_userId: { eventId: activeEvent.id, userId } },
+          update: {}, create: { eventId: activeEvent.id, userId, stageIndex: 0 },
+          select: { stageIndex: true },
+        });
+        if (expeditionIds[currentStage.stageIndex] === poi.id) {
+          await tx.expeditionProgress.updateMany({
+            where: { eventId: activeEvent.id, userId, stageIndex: currentStage.stageIndex },
+            data: { stageIndex: { increment: 1 } },
+          });
+        }
+      }
       if (isSecret) {
-        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: 10000 }, crystalsBalance: { increment: 50 } } });
-        await tx.transaction.createMany({ data: [
-          { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: 10000, currency: 'coins', metadata: { poiId: poi.id } },
-          { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: 50, currency: 'crystals', metadata: { poiId: poi.id } },
-        ] });
+        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: secretCoinsAwarded } } });
+        await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'secret_discovery', amount: secretCoinsAwarded, currency: 'coins', metadata: { poiId: poi.id, flashlightBonus: nightBonus > 0 } } });
       }
       if (crystalsAwarded > 0) {
         const wallet = await tx.wallet.update({ where: { userId }, data: { crystalsBalance: { increment: crystalsAwarded } } });
@@ -227,7 +247,7 @@ export class VisitsService {
       return { visit: created, secretDiscovered: isSecret };
     });
 
-    const progress = await this.progression.addXp(userId, xpAwarded);
+    let progress = await this.progression.addXp(userId, xpAwarded);
     if (coinsAwarded > 0) await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
 
     const roulette = await this.prisma.rouletteChallenge.findFirst({ where: { userId, poiId: poi.id, status: 'active', expiresAt: { gt: new Date() } } });
@@ -236,11 +256,15 @@ export class VisitsService {
       rouletteReward = await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.rouletteChallenge.updateMany({ where: { id: roulette.id, status: 'active', expiresAt: { gt: new Date() } }, data: { status: 'completed', completedAt: new Date() } });
         if (!claimed.count) return 0;
-        const prize = 10000;
+        const prize = 5;
         const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: prize } } });
         await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'traveler_roulette_win', amount: prize, currency: 'coins', metadata: { challengeId: roulette.id } } });
         return prize;
       });
+      if (rouletteReward > 0) {
+        await this.prisma.visit.update({ where: { id: visitResult.visit.id }, data: { xpAwarded: { increment: 5 }, coinsAwarded: { increment: 5 } } });
+        progress = await this.progression.addXp(userId, 5);
+      }
     }
 
     // Проверка вех «посетить N мест» — начисляется поверх обычной награды за точку
@@ -250,10 +274,10 @@ export class VisitsService {
     return {
       status: 'verified',
       visit: visitResult.visit,
-      xpAwarded,
-      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? 10000 : 0) + rouletteReward,
-      crystalsAwarded: crystalsAwarded + (visitResult.secretDiscovered ? 50 : 0),
-      secretDiscovery: visitResult.secretDiscovered ? { coins: 10000, crystals: 50 } : undefined,
+      xpAwarded: xpAwarded + (rouletteReward > 0 ? 5 : 0),
+      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? secretCoinsAwarded : 0) + rouletteReward,
+      crystalsAwarded,
+      secretDiscovery: visitResult.secretDiscovered ? { xp: xpAwarded, coins: secretCoinsAwarded } : undefined,
       rouletteReward,
       level: progress.level,
       newMilestones,

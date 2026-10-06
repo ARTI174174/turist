@@ -54,6 +54,12 @@ export class EconomyService {
       throw new NotFoundException({ code: 'ITEM_NOT_FOUND', message: 'Предмет не найден' });
     }
 
+    const permanentEquipment = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
+    if (permanentEquipment.has(item.name)) {
+      const alreadyOwned = await this.prisma.inventoryItem.findFirst({ where: { userId, shopItemId }, select: { id: true } });
+      if (alreadyOwned) throw new BadRequestException('Этот предмет уже есть в вашем лагере или снаряжении.');
+    }
+
     const wallet = await this.getWallet(userId);
 
     // Способность "Опытный турист" и вся игровая прогрессия покупается ТОЛЬКО за монеты (FR-ECO-04)

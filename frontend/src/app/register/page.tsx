@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import clsx from 'clsx';
@@ -14,13 +14,22 @@ import { AvatarImage } from '@/components/character/AvatarImage';
 export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [archetype, setArchetype] = useState<'male' | 'female'>('male');
   const [avatarEmoji, setAvatarEmoji] = useState(FREE_AVATARS[0].src);
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
+  const [campThemeId, setCampThemeId] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<{ challengeId: string; question: string } | null>(null);
+  const [challengeAnswer, setChallengeAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const loadChallenge = useCallback(async () => {
+    try { setChallenge(await api.get<{ challengeId: string; question: string }>('/auth/register-challenge')); setChallengeAnswer(''); }
+    catch { setChallenge(null); }
+  }, []);
+  useEffect(() => { void loadChallenge(); }, [loadChallenge]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,11 +41,15 @@ export default function RegisterPage() {
         password,
         archetype,
         avatarEmoji,
+        campThemeId,
+        challengeId: challenge?.challengeId,
+        challengeAnswer: Number(challengeAnswer),
       });
       setSession(res.user, res.accessToken, res.refreshToken);
       router.push('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Не удалось зарегистрироваться');
+      void loadChallenge();
     } finally {
       setLoading(false);
     }
@@ -119,26 +132,45 @@ export default function RegisterPage() {
         )}
 
         {step === 3 && (
+          <div className="space-y-4">
+            <h2 className="text-center font-display text-lg text-parchment">Выбери первый лагерь</h2>
+            <p className="text-center text-xs text-parchment/65">Позже сменить его можно будет в магазине за 20 бриллиантов.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ['zyuratkul', 'Зюраткуль', '/assets/camp/locations/zyuratkul.png'],
+                ['nurgush', 'Нургуш', '/assets/camp/locations/nurgush.png'],
+                ['taganay', 'Таганай', '/assets/camp/locations/taganay.png'],
+                ['ural', 'Урал', '/assets/camp/locations/ural.jpg'],
+              ].map(([id, title, image]) => <button type="button" key={id} onClick={() => setCampThemeId(id)} className={`overflow-hidden rounded-2xl border-2 text-left ${campThemeId === id ? 'border-brass' : 'border-brass/25'}`}>
+                <img src={image} alt="" className="h-28 w-full object-cover" /><span className="block p-2 text-sm text-parchment">{title}</span>
+              </button>)}
+            </div>
+            <div className="flex gap-3"><button type="button" onClick={() => setStep(2)} className="adventure-secondary rounded-full px-5 py-3 font-display text-sm">Назад</button><button type="button" disabled={!campThemeId} onClick={() => setStep(4)} className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-40">Далее</button></div>
+          </div>
+        )}
+
+        {step === 4 && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Field label="Логин (ник)" value={nickname} onChange={setNickname} autoComplete="username" hint="Придумайте логин: 3–20 символов, латиница или цифры" placeholder="Введите логин" />
-            <Field label="Пароль" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Придумайте пароль (минимум 8 символов)" placeholder="Введите пароль" />
+            <Field label="Игровой ник" value={nickname} onChange={setNickname} autoComplete="username" hint="3–20 символов: латинские буквы, цифры или _" placeholder="Придумайте ник" />
+            <Field label="Пароль для входа" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Минимум 8 символов" placeholder="Придумайте пароль" />
+            <label className="block rounded-xl border border-brass/30 bg-black/15 p-3"><span className="mb-2 block text-sm text-parchment">Проверка: {challenge?.question ?? 'Загружаем пример…'}</span><input value={challengeAnswer} onChange={(event) => setChallengeAnswer(event.target.value.replace(/\D/g, '').slice(0, 3))} inputMode="numeric" pattern="[0-9]*" required placeholder="Ответ" className="w-full rounded-xl border border-brass/40 bg-black/25 px-4 py-3 text-parchment outline-none focus:border-moss-light" /></label>
 
             {error && <p className="rounded-xl bg-danger/10 p-3 text-sm text-danger">{error}</p>}
 
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 className="adventure-secondary rounded-full px-5 py-3 font-display text-sm"
               >
                 Назад
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !challenge}
                 className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-50"
               >
-                {loading ? 'Создаём…' : 'Начать путешествие'}
+                {loading ? 'Создаём…' : !challenge ? 'Загружаем проверку…' : 'Начать путешествие'}
               </button>
             </div>
           </form>

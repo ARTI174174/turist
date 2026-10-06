@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { api, ApiError } from '@/lib/api';
 import { Poi, Crystal } from '@/types';
+import { Magnet } from 'lucide-react';
 
 export default function MapPage() {
   const router = useRouter();
@@ -28,6 +29,11 @@ export default function MapPage() {
   const queryClient = useQueryClient();
 
   useEffect(() => setHydrated(true), []);
+
+  // Фокусируем камеру на выбранной точке, не перемещая маркер игрока.
+  useEffect(() => {
+    if (selectedPoi) mapRef.current?.focusOnPoi(selectedPoi);
+  }, [selectedPoi]);
 
   useEffect(() => {
     if (hydrated && !user) router.replace('/login');
@@ -55,6 +61,8 @@ export default function MapPage() {
     enabled: !!user && !!position,
     refetchInterval: 15_000,
   });
+  const { data: magnet } = useQuery<{ owned: boolean; ready: boolean; readyAt: string | null; cooldownMinutes: number }>({ queryKey: ['crystals', 'magnet-status'], queryFn: () => api.get('/crystals/magnet/status'), enabled: !!user, refetchInterval: 20_000 });
+  const { data: compass } = useQuery<{ enabled: boolean; distanceMeters: number | null }>({ queryKey: ['game', 'secret-compass', posKey], queryFn: () => api.get(`/game/secrets/compass?lat=${position!.lat}&lng=${position!.lng}`), enabled: !!user && !!position, refetchInterval: 15_000 });
 
   async function handleSelectCrystal(crystal: Crystal) {
     if (!position || collectingCrystal) return;
@@ -78,6 +86,21 @@ export default function MapPage() {
     }
   }
 
+  async function handleMagnet() {
+    if (!position || !magnet?.owned || !magnet.ready) return;
+    try {
+      const result = await api.post<{ count: number; reward: number }>('/crystals/magnet/collect', { lat: position.lat, lng: position.lng });
+      if (user) updateUser({ wallet: { ...user.wallet, crystalsBalance: user.wallet.crystalsBalance + result.reward } });
+      queryClient.invalidateQueries({ queryKey: ['crystals', 'nearby'] });
+      queryClient.invalidateQueries({ queryKey: ['crystals', 'magnet-status'] });
+      setCrystalMsg(`Магнит собрал ${result.count} бриллиантов · +${result.reward} 💎`);
+      setTimeout(() => setCrystalMsg(null), 3500);
+    } catch (error) {
+      setCrystalMsg(error instanceof ApiError ? error.message : 'Не удалось включить магнит');
+      setTimeout(() => setCrystalMsg(null), 3500);
+    }
+  }
+
   if (!hydrated || !user) return null;
 
   return (
@@ -92,11 +115,12 @@ export default function MapPage() {
         onSelectCrystal={handleSelectCrystal}
       />
       <TopHud />
+      {compass?.enabled && compass.distanceMeters != null && <div className="pointer-events-none absolute left-1/2 top-[calc(env(safe-area-inset-top,0px)+76px)] z-20 -translate-x-1/2 rounded-full border border-brass/40 bg-black/65 px-3 py-1 text-[10px] text-parchment shadow-lg backdrop-blur"><span className="text-brass">Компас</span> · до секретной точки {compass.distanceMeters >= 1000 ? `${(compass.distanceMeters / 1000).toFixed(1)} км` : `${compass.distanceMeters} м`}</div>}
       {!selectedPoi && <QuestsShopLauncher showLeaderboard />}
 
       {!selectedPoi && secretPois[0] && (
         <button
-          onClick={() => selectPoi(secretPois[0])}
+          onClick={() => { mapRef.current?.focusOnPoi(secretPois[0]); selectPoi(secretPois[0]); }}
           className="hud-panel absolute left-3 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 text-left text-parchment shadow-lg backdrop-blur"
           style={{ top: 'calc(env(safe-area-inset-top, 0px) + 296px)' }}
           aria-label={`Секретная точка, ${Math.round(secretPois[0].distanceMeters ?? 0)} метров`}
@@ -150,6 +174,8 @@ export default function MapPage() {
           </button>
         </div>
       )}
+
+      {!selectedPoi && magnet?.owned && <button onClick={() => void handleMagnet()} disabled={!magnet.ready || !position} title={magnet.ready ? 'Собрать видимые бриллианты магнитом' : 'Магнит перезаряжается'} className="hud-panel absolute bottom-[calc(10.75rem+env(safe-area-inset-bottom,0px))] left-3 z-20 rounded-full p-3 text-sky-200 shadow-lg disabled:opacity-40"><Magnet size={21} /></button>}
 
       {selectedPoi && (
         <POICard poi={selectedPoi} position={position} onClose={() => selectPoi(null)} />

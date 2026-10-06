@@ -5,6 +5,9 @@ const prisma = new PrismaClient();
 
 // Полный набор категорий — цвета соответствуют комментариям в poi-data.ts
 const CATEGORIES = [
+  { code: 'city', title: 'Город', colorHex: '#FBC02D', iconAsset: '/assets/poi-markers/1.png' },
+  { code: 'township', title: 'Посёлок', colorHex: '#4CAF50', iconAsset: '/assets/poi-markers/11.png' },
+  { code: 'trail', title: 'Пешая тропа / маршрутная точка', colorHex: '#558B2F', iconAsset: '/assets/poi-markers/10.png' },
   { code: 'lake', title: 'Озеро', colorHex: '#2196F3', iconAsset: '/assets/poi-markers/12.png' },
   { code: 'mountain', title: 'Гора', colorHex: '#795548', iconAsset: '/assets/poi-markers/2.png' },
   { code: 'river', title: 'Река', colorHex: '#00897B', iconAsset: '/assets/poi-markers/10.png' },
@@ -21,8 +24,8 @@ const CATEGORIES = [
   { code: 'abandoned', title: 'Заброшенный объект', colorHex: '#455A64', iconAsset: '/assets/poi-markers/3.png' },
 ];
 
-const CATEGORY_REWARDS: Record<string, number> = { lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
-const CATEGORY_MARKERS: Record<string, number> = { lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
+const CATEGORY_REWARDS: Record<string, number> = { city: 100, township: 100, trail: 400, lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
+const CATEGORY_MARKERS: Record<string, number> = { city: 1, township: 11, trail: 10, lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
 const UPGRADE_SETTINGS = [
   ...[500, 1000, 2000, 5000, 10000].map((effectValue, level) => ({ kind: 'glasses', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),
   ...[0, 50, 100, 150, 200].map((effectValue, level) => ({ kind: 'gloves', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),
@@ -51,11 +54,10 @@ async function main() {
       continue;
     }
 
-    const isCity = poi.categoryCode === 'historic' && poi.geofenceRadiusM >= 2500;
-    const reward = isCity ? 100 : CATEGORY_REWARDS[poi.categoryCode] ?? poi.baseXp;
+    const reward = CATEGORY_REWARDS[poi.categoryCode] ?? poi.baseXp;
     const data = {
       categoryId,
-      markerAsset: `/assets/poi-markers/${isCity ? 1 : (CATEGORY_MARKERS[poi.categoryCode] ?? 3)}.png`,
+      markerAsset: `/assets/poi-markers/${CATEGORY_MARKERS[poi.categoryCode] ?? 3}.png`,
       lat: poi.lat,
       lng: poi.lng,
       geofenceRadiusM: poi.geofenceRadiusM,
@@ -115,6 +117,11 @@ async function main() {
     { name: 'Рюкзак "Следопыт"', category: 'backpack', priceCoins: 4500, rarity: 'common' },
     { name: 'Ушанка "Легенда Урала"', category: 'headwear', priceCoins: 12000, rarity: 'rare' },
     { name: 'Питомец: Уральский лис', category: 'pet', priceCrystals: 500, rarity: 'epic' },
+    { name: 'Магнит следопыта', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/magnet.png' },
+    { name: 'Фонарь путешественника', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/flashlight.png' },
+    { name: 'Компас искателя', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/compass.png' },
+    { name: 'Палатка уральская', category: 'camp', priceCoins: 10000, rarity: 'common', assetUrl: '/assets/shop/tent.png' },
+    { name: 'Флаг путешественника', category: 'camp', priceCoins: 5000, rarity: 'common' },
   ];
 
   for (const item of shopItems) {

@@ -26,6 +26,9 @@ export interface Poi {
   interestingFacts: string[];
   bestSeason: string[];
   visibility: 'public' | 'secret' | 'hidden_map';
+  secretFoundAt?: string | null;
+  secretFinder?: { nickname: string } | null;
+  flag?: { design: unknown; user: { nickname: string } } | null;
   difficulty: string;
   visitCount: number;
   baseXp: number;
@@ -63,6 +66,7 @@ export interface AuthUser {
   id: string;
   nickname: string;
   role: string;
+  campThemeId?: string;
   character: CharacterProfile;
   wallet: Wallet;
   progress: { xp: number; rankCode: string };

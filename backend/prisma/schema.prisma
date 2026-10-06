@@ -110,7 +110,10 @@ model User {
   welcomeSeenAt       DateTime?
   glassesLevel        Int      @default(0)
   glovesLevel         Int      @default(0)
+  magnetLevel         Int      @default(0)
+  magnetLastUsedAt    DateTime?
   campThemeId         String   @default("default")
+  flagDesign          Json     @default("[]")
 
   character           CharacterProfile?
   wallet              Wallet?
@@ -133,8 +136,12 @@ model User {
   poiComments         PoiComment[]
   secretFinds         Poi[]    @relation("SecretFinder")
   expeditionClaims    ExpeditionClaim[]
+  expeditionProgress  ExpeditionProgress[]
   rouletteChallenges  RouletteChallenge[]
   newsReads           NewsRead[]
+  authoredRoutes      Route[] @relation("RouteAuthor")
+  routeReviews        RouteReview[]
+  poiFlags            PoiFlag[]
 
   @@map("users")
 }
@@ -224,9 +231,23 @@ model Poi {
   routeStops      RouteStop[]
   collectionItems CollectionItem[]
   comments        PoiComment[]
+  flag            PoiFlag?
 
   @@index([regionCode])
   @@map("poi")
+}
+
+model PoiFlag {
+  id        String   @id @default(uuid())
+  poiId     String   @unique
+  poi       Poi      @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  design    Json
+  placedAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("poi_flags")
 }
 
 model PoiMedia {
@@ -473,12 +494,32 @@ model Route {
   title                String
   description          String?
   createdBy            String?
+  author               User?    @relation("RouteAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
+  status               String   @default("pending")
+  createdAt            DateTime @default(now())
   estimatedDistanceKm  Float?
   estimatedDurationMin Int?
 
   stops RouteStop[]
+  reviews RouteReview[]
 
   @@map("routes")
+}
+
+model RouteReview {
+  id        String   @id @default(uuid())
+  routeId   String
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([routeId, userId])
+  @@index([routeId, rating])
+  @@map("route_reviews")
 }
 
 model RouteStop {
@@ -606,8 +647,22 @@ model ExpeditionEvent {
   startsAt   DateTime
   endsAt     DateTime
   claims     ExpeditionClaim[]
+  progress   ExpeditionProgress[]
 
   @@map("expedition_events")
+}
+
+model ExpeditionProgress {
+  id         String          @id @default(uuid())
+  eventId    String
+  event      ExpeditionEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stageIndex Int             @default(0)
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([eventId, userId])
+  @@map("expedition_progress")
 }
 
 model ExpeditionClaim {
@@ -624,18 +679,21 @@ model ExpeditionClaim {
 }
 
 model RouletteChallenge {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dayKey    String
-  poiId     String
-  poi       Poi      @relation(fields: [poiId], references: [id], onDelete: Cascade)
-  startedAt DateTime @default(now())
-  expiresAt DateTime
-  status    String   @default("active")
-  completedAt DateTime?
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayKey        String
+  spinIndex     Int      @default(1)
+  poiId         String?
+  poi           Poi?     @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  rewardCoins   Int      @default(0)
+  rewardCrystals Int     @default(0)
+  startedAt     DateTime @default(now())
+  expiresAt     DateTime
+  status        String   @default("active")
+  completedAt   DateTime?
 
-  @@unique([userId, dayKey])
+  @@unique([userId, dayKey, spinIndex])
   @@index([userId, status, expiresAt])
   @@map("roulette_challenges")
 }

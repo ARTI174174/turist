@@ -17,12 +17,28 @@ const AVATAR_PRICES: Record<string, number> = {
   '/assets/avatars/22.jpg': 200,
 };
 
+function yekaterinburgDateKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Yekaterinburg', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly registerChallenges = new Map<string, { answer: number; expiresAt: number }>();
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
+
+  createRegisterChallenge() {
+    const a = 2 + Math.floor(Math.random() * 18);
+    const b = 2 + Math.floor(Math.random() * 18);
+    const challengeId = randomUUID();
+    this.registerChallenges.set(challengeId, { answer: a + b, expiresAt: Date.now() + 5 * 60_000 });
+    for (const [id, challenge] of this.registerChallenges) if (challenge.expiresAt < Date.now()) this.registerChallenges.delete(id);
+    return { challengeId, question: `${a} + ${b} = ?` };
+  }
 
   private async issueTokens(user: { id: string; nickname: string; role: string }) {
     const payload = { sub: user.id, nickname: user.nickname, role: user.role };
@@ -50,6 +66,11 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    const challenge = this.registerChallenges.get(dto.challengeId);
+    this.registerChallenges.delete(dto.challengeId);
+    if (!challenge || challenge.expiresAt < Date.now() || challenge.answer !== dto.challengeAnswer) {
+      throw new BadRequestException('Решите пример для проверки и попробуйте ещё раз.');
+    }
     const nicknameLower = dto.nickname.toLowerCase();
     const existing = await this.prisma.user.findUnique({
       where: { nicknameLower },
@@ -67,6 +88,7 @@ export class AuthService {
         nickname: dto.nickname,
         nicknameLower,
         passwordHash,
+        campThemeId: dto.campThemeId,
         character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '/assets/avatars/1.jpg' } },
         wallet: { create: { coinsBalance: 0, crystalsBalance: 0 } },
         progress: { create: { xp: 0, rankCode: 'novice' } },
@@ -123,14 +145,17 @@ export class AuthService {
     const now = new Date();
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true } });
-      const elapsed = current.lastDailyRewardAt ? now.getTime() - current.lastDailyRewardAt.getTime() : Number.POSITIVE_INFINITY;
-      if (elapsed < 24 * 60 * 60 * 1000) return { claimed: false, streak: current.dailyLoginStreak, nextAt: new Date(current.lastDailyRewardAt!.getTime() + 24 * 60 * 60 * 1000).toISOString() };
-      const streak = elapsed > 24 * 60 * 60 * 1000 ? 1 : current.dailyLoginStreak + 1;
+      const today = yekaterinburgDateKey(now);
+      const previousDay = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) - 1)).toISOString().slice(0, 10);
+      const lastDay = current.lastDailyRewardAt ? yekaterinburgDateKey(current.lastDailyRewardAt) : null;
+      const nextLocalMidnightUtc = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) + 1) - 5 * 60 * 60 * 1000);
+      if (lastDay === today) return { claimed: false, streak: current.dailyLoginStreak, nextAt: nextLocalMidnightUtc.toISOString() };
+      const streak = lastDay === previousDay ? current.dailyLoginStreak + 1 : 1;
       const reward = rewards[(streak - 1) % 10];
       await tx.user.update({ where: { id: userId }, data: { dailyLoginStreak: streak, lastDailyRewardAt: now } });
       const wallet = await tx.wallet.update({ where: { userId }, data: reward.currency === 'coins' ? { coinsBalance: { increment: reward.amount } } : { crystalsBalance: { increment: reward.amount } } });
       await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'daily_login', amount: reward.amount, currency: reward.currency, metadata: { streak } } });
-      return { claimed: true, streak, reward, nextAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() };
+      return { claimed: true, streak, reward, nextAt: nextLocalMidnightUtc.toISOString() };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
@@ -286,6 +311,7 @@ export class AuthService {
       character,
       wallet: user.wallet,
       progress: user.progress,
+      campThemeId: user.campThemeId,
       createdAt: user.createdAt,
     };
   }
