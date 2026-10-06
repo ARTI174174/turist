@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Map as MapLibreMap, Marker } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker, setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Poi, Crystal } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
@@ -96,6 +96,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Next.js does not emit MapLibre's module worker and its shared chunk
+    // reliably through its bundlers. Serve the matching files from public/.
+    setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE,
