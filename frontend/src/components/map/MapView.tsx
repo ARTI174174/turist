@@ -48,6 +48,16 @@ const POI_MARKERS: Record<string, number> = {
   village: 11,
   abandoned: 3,
 };
+// При наложении точек важные категории остаются сверху и доступны для нажатия.
+const POI_MARKER_PRIORITY: Record<string, number> = {
+  city: 100,
+  mountain: 90,
+  trail: 80,
+  museum: 70,
+  historic: 60,
+  lake: 50,
+  monument: 40,
+};
 const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
   [56.0, 50.5],
   [64.0, 56.8],
@@ -229,7 +239,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         background: 'transparent',
         boxShadow: 'none',
         cursor: 'pointer',
-        zIndex: '10',
+        zIndex: String(POI_MARKER_PRIORITY[poi.category?.code ?? ''] ?? 10),
       });
       // Use an actual image element: CSS background styles and blend modes on
       // map buttons made the illustrated pins look like tiny dark circles.
