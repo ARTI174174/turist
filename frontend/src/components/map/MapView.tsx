@@ -52,6 +52,8 @@ const POI_MARKERS: Record<string, number> = {
 const POI_MARKER_PRIORITY: Record<string, number> = {
   // Keep marker z-indexes below the HUD (20), point card (30), and modal (40).
   city: 19,
+  township: 19,
+  village: 19,
   mountain: 18,
   trail: 17,
   museum: 16,
@@ -223,6 +225,21 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
+    const updateMarkerScale = () => {
+      const zoom = map.getZoom();
+      // Keep settlement markers at their familiar size. Other markers shrink
+      // smoothly at regional zooms and reach their current size by zoom 12.
+      const scale = Math.max(0.45, Math.min(1, 0.45 + ((zoom - 7) / 5) * 0.55));
+      for (const marker of markersRef.current) {
+        const element = marker.getElement();
+        const art = element.querySelector<HTMLElement>('.poi-marker-art');
+        if (!art) continue;
+        const category = element.dataset.poiCategory;
+        const fixedSize = category === 'city' || category === 'township' || category === 'village';
+        art.style.transform = `scale(${fixedSize ? 1 : scale})`;
+      }
+    };
+
     for (const poi of pois) {
       if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
 
@@ -241,6 +258,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         boxShadow: 'none',
         cursor: 'pointer',
         zIndex: String(POI_MARKER_PRIORITY[poi.category?.code ?? ''] ?? 10),
+        overflow: 'visible',
+      });
+      el.dataset.poiCategory = poi.category?.code ?? '';
+      const markerArt = document.createElement('div');
+      markerArt.className = 'poi-marker-art';
+      Object.assign(markerArt.style, {
+        width: '100%',
+        height: '100%',
+        transformOrigin: 'bottom center',
+        transition: 'transform 120ms ease-out',
       });
       // Use an actual image element: CSS background styles and blend modes on
       // map buttons made the illustrated pins look like tiny dark circles.
@@ -263,7 +290,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.45))',
           pointerEvents: 'none',
         });
-        el.appendChild(image);
+        markerArt.appendChild(image);
       }
       if (poi.flag) {
         const badge = document.createElement('div');
@@ -284,8 +311,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           const flagShape = document.createElementNS(svg.namespaceURI, 'path');
           flagShape.setAttribute('d', 'M23 12 H88 L70 38 L88 62 H23 Z'); flagShape.setAttribute('fill', '#E74C3C'); svg.appendChild(flagShape);
         }
-        badge.appendChild(svg); el.appendChild(badge);
+        badge.appendChild(svg); markerArt.appendChild(badge);
       }
+      el.appendChild(markerArt);
 
       const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
@@ -297,6 +325,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       });
       markersRef.current.push(marker);
     }
+    updateMarkerScale();
+    map.on('zoom', updateMarkerScale);
+    return () => map.off('zoom', updateMarkerScale);
   }, [pois, mapReady]);
 
   // Кристаллы.
