@@ -227,73 +227,16 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markersRef.current = [];
       const zoom = map.getZoom();
       const settlement = (poi: Poi) => ['city', 'township', 'village'].includes(poi.category?.code ?? '');
-      const individualPois: Poi[] = [];
-      const clusters: Array<{ points: Poi[]; anchorX: number; anchorY: number; sumX: number; sumY: number }> = [];
+      const importantCategories = new Set(['mountain', 'trail', 'lake', 'park', 'museum', 'historic']);
 
-      // At regional zooms nearby non-settlement locations become one counter.
-      // This keeps the map readable while keeping every point reachable by zooming in.
-      if (zoom <= 10.5) {
-        const radius = 48;
-        const cells = new Map<string, number[]>();
-        for (const poi of pois) {
-          if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
-          if (settlement(poi)) { individualPois.push(poi); continue; }
-          const projected = map.project([poi.lng, poi.lat]);
-          const cellX = Math.floor(projected.x / radius);
-          const cellY = Math.floor(projected.y / radius);
-          let nearestCluster = -1;
-          let nearestDistance = radius;
-          for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-            for (const index of cells.get(`${cellX + dx}:${cellY + dy}`) ?? []) {
-              const cluster = clusters[index];
-              const distance = Math.hypot(projected.x - cluster.anchorX, projected.y - cluster.anchorY);
-              if (distance < nearestDistance) { nearestCluster = index; nearestDistance = distance; }
-            }
-          }
-          if (nearestCluster >= 0) {
-            const cluster = clusters[nearestCluster];
-            cluster.points.push(poi); cluster.sumX += projected.x; cluster.sumY += projected.y;
-          } else {
-            const index = clusters.push({ points: [poi], anchorX: projected.x, anchorY: projected.y, sumX: projected.x, sumY: projected.y }) - 1;
-            const key = `${cellX}:${cellY}`;
-            cells.set(key, [...(cells.get(key) ?? []), index]);
-          }
-        }
-        for (const cluster of clusters) {
-          if (cluster.points.length === 1) individualPois.push(cluster.points[0]);
-          else {
-            const center = map.unproject([cluster.sumX / cluster.points.length, cluster.sumY / cluster.points.length]);
-            const el = document.createElement('button');
-            el.type = 'button';
-            el.setAttribute('aria-label', `${cluster.points.length} точек рядом`);
-            el.title = `${cluster.points.length} точек рядом — нажмите, чтобы приблизить карту`;
-            Object.assign(el.style, {
-              display: 'grid', width: '40px', height: '40px', padding: '0', placeItems: 'center',
-              border: '2px solid #e7d19a', borderRadius: '50%', background: '#1d352a',
-              color: '#fff1c7', font: '700 14px Manrope, sans-serif',
-              boxShadow: '0 2px 7px rgba(0,0,0,.65)', cursor: 'pointer', zIndex: '9',
-            });
-            el.textContent = String(cluster.points.length);
-            const marker = new Marker({ element: el, anchor: 'center' }).setLngLat([center.lng, center.lat]).addTo(map);
-            el.addEventListener('click', () => {
-              const xs = cluster.points.map((poi) => poi.lng);
-              const ys = cluster.points.map((poi) => poi.lat);
-              const bounds: [[number, number], [number, number]] = [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
-              if (Math.abs(bounds[1][0] - bounds[0][0]) < 0.0001 && Math.abs(bounds[1][1] - bounds[0][1]) < 0.0001) {
-                map.easeTo({ center: [center.lng, center.lat], zoom: Math.min(12, zoom + 2), duration: 450 });
-              } else {
-                map.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: 450 });
-              }
-            });
-            markersRef.current.push(marker);
-          }
-        }
-      } else {
-        individualPois.push(...pois);
-      }
-
-    for (const poi of individualPois) {
+      for (const poi of pois) {
       if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
+      const isSettlement = settlement(poi);
+      const zoomToShow = importantCategories.has(poi.category?.code ?? '') ? 8.5 : 9.5;
+      if (!isSettlement && zoom < zoomToShow) continue;
+      // Size the actual map button so neighboring hit areas shrink together
+      // with the artwork. Never grow beyond its original 46 × 56 px size.
+      const scale = isSettlement ? 1 : Math.max(0.25, Math.min(1, 0.25 + (zoom - 7) * 0.15));
 
       const el = document.createElement('button');
       el.type = 'button';
@@ -301,8 +244,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       el.title = poi.title;
       Object.assign(el.style, {
         display: 'block',
-        width: '46px',
-        height: '56px',
+        width: `${46 * scale}px`,
+        height: `${56 * scale}px`,
         padding: '0',
         border: '0',
         borderRadius: '0',
@@ -318,8 +261,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       Object.assign(markerArt.style, {
         width: '100%',
         height: '100%',
-        transformOrigin: 'bottom center',
-        transition: 'transform 120ms ease-out',
+        position: 'relative',
       });
       // Use an actual image element: CSS background styles and blend modes on
       // map buttons made the illustrated pins look like tiny dark circles.
@@ -347,7 +289,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       if (poi.flag) {
         const badge = document.createElement('div');
         badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
-        Object.assign(badge.style, { position: 'absolute', top: '-7px', right: '-5px', width: '25px', height: '27px', borderRadius: '7px', background: 'rgba(10,15,10,.88)', border: '1px solid rgba(219,190,118,.8)', boxShadow: '0 2px 5px #0008' });
+        Object.assign(badge.style, { position: 'absolute', top: `${-7 * scale}px`, right: `${-5 * scale}px`, width: `${25 * scale}px`, height: `${27 * scale}px`, borderRadius: `${7 * scale}px`, background: 'rgba(10,15,10,.88)', border: `${scale}px solid rgba(219,190,118,.8)`, boxShadow: '0 2px 5px #0008' });
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
         const pole = document.createElementNS(svg.namespaceURI, 'line');
@@ -366,8 +308,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         badge.appendChild(svg); markerArt.appendChild(badge);
       }
       el.appendChild(markerArt);
-      const markerScale = settlement(poi) ? 1 : Math.max(0.4, Math.min(1, 0.4 + ((zoom - 7) / 5) * 0.6));
-      markerArt.style.transform = `scale(${markerScale})`;
 
       const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
@@ -378,7 +318,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         onSelectPoiRef.current(poi);
       });
       markersRef.current.push(marker);
-    }
+      }
     };
 
     renderPoiMarkers();
