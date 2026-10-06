@@ -231,11 +231,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       for (const poi of pois) {
         if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
         const fixedSize = poi.markerFixedSize === 1;
-        const zoomToShow = fixedSize ? 7 : importantCategories.has(poi.category?.code ?? '') ? 8.5 : 10.5;
+        const settlement = ['city', 'township', 'village'].includes(poi.category?.code ?? '');
+        const zoomToShow = fixedSize ? 7 : importantCategories.has(poi.category?.code ?? '') ? 9 : 11.5;
         if (zoom < zoomToShow) continue;
         // Scale the actual marker element and image together. At distant zooms
         // investigated locations become small; they never exceed 46 × 56 px.
-        const scale = fixedSize ? 1 : Math.max(0.2, Math.min(1, (zoom - 6) / 9));
+        const scale = fixedSize ? 1 : Math.max(0.18, Math.min(1, (zoom - 7) / 7));
 
         const el = document.createElement('button');
         el.type = 'button';
@@ -255,7 +256,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           overflow: 'visible',
         });
         const markerArt = document.createElement('div');
-        Object.assign(markerArt.style, { width: '100%', height: '100%', position: 'relative' });
+        // MapLibre controls the outer marker's transform for geographic
+        // positioning, so scale the artwork on an inner element instead.
+        Object.assign(markerArt.style, {
+          width: '46px',
+          height: '56px',
+          position: 'absolute',
+          left: '50%',
+          bottom: '0',
+          transform: `translateX(-50%) scale(${scale})`,
+          transformOrigin: 'bottom center',
+        });
         const categoryCode = poi.category?.code;
         const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
           : categoryCode ? POI_MARKERS[categoryCode] : undefined;
@@ -302,6 +313,27 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         const marker = new Marker({ element: el, anchor: 'bottom' })
           .setLngLat([poi.lng, poi.lat])
           .addTo(map);
+
+        // Basemap labels live inside the map canvas, underneath HTML markers.
+        // Add a foreground label for settlements so their names remain legible
+        // even when other point markers overlap them.
+        if (settlement) {
+          const label = document.createElement('span');
+          label.textContent = poi.title;
+          Object.assign(label.style, {
+            display: 'block',
+            whiteSpace: 'nowrap',
+            color: '#244638',
+            font: '700 13px/1.2 system-ui, sans-serif',
+            textShadow: '-1px -1px 0 #f2ead7, 1px -1px 0 #f2ead7, -1px 1px 0 #f2ead7, 1px 1px 0 #f2ead7, 0 1px 4px #f2ead7',
+            pointerEvents: 'none',
+            zIndex: '1000',
+          });
+          const labelMarker = new Marker({ element: label, anchor: 'bottom', offset: [0, -Math.round(56 * scale + 3)] })
+            .setLngLat([poi.lng, poi.lat])
+            .addTo(map);
+          markersRef.current.push(labelMarker);
+        }
 
         el.addEventListener('click', () => {
           map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
