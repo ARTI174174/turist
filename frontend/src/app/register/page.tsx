@@ -7,7 +7,6 @@ import clsx from 'clsx';
 import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthResponse } from '@/types';
-import { CharacterPreview } from '@/components/character/CharacterPreview';
 import { FREE_AVATARS } from '@/lib/avatars';
 import { AvatarImage } from '@/components/character/AvatarImage';
 
@@ -66,7 +65,6 @@ export default function RegisterPage() {
 
         {step === 1 && (
           <div className="space-y-6">
-            <CharacterPreview archetype="male" className="mx-auto h-48 w-48 touch-none sm:h-64 sm:w-64" />
             <div className="text-center">
               <div className="avatar-portrait mx-auto mb-3 h-24 w-24 rounded-full border-[3px] border-brass p-1 shadow-xl">
                 <AvatarImage value={avatarEmoji} className="h-full w-full rounded-full" />
