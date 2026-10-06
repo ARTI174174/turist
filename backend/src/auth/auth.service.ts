@@ -103,7 +103,7 @@ export class AuthService {
         nicknameLower,
         passwordHash,
         campThemeId: dto.campThemeId,
-        privacySettings: { tutorialRequired: true, tutorialPointFound: false },
+        privacySettings: { tutorialRequired: true, tutorialPointFound: false, ownedCampThemes: [dto.campThemeId] },
         character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '/assets/avatars/1.jpg' } },
         wallet: { create: { coinsBalance: 0, crystalsBalance: 0 } },
         progress: { create: { xp: 0, rankCode: 'novice' } },
@@ -316,6 +316,10 @@ export class AuthService {
           ownedAvatarIds: (user.character.ownedAvatars ?? []).map(({ avatarNumber }: { avatarNumber: number }) => avatarNumber),
         }
       : null;
+    const allowedCampThemes = ['zyuratkul', 'nurgush', 'taganay', 'ural'];
+    const settings = user.privacySettings && typeof user.privacySettings === 'object' && !Array.isArray(user.privacySettings) ? user.privacySettings as Record<string, unknown> : {};
+    const ownedCampThemes = new Set(Array.isArray(settings.ownedCampThemes) ? settings.ownedCampThemes.filter((id): id is string => typeof id === 'string' && allowedCampThemes.includes(id)) : []);
+    if (allowedCampThemes.includes(user.campThemeId)) ownedCampThemes.add(user.campThemeId);
     return {
       id: user.id,
       nickname: user.nickname,
@@ -324,6 +328,7 @@ export class AuthService {
       wallet: user.wallet,
       progress: user.progress,
       campThemeId: user.campThemeId,
+      ownedCampThemes: [...ownedCampThemes],
       createdAt: user.createdAt,
     };
   }

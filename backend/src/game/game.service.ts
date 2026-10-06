@@ -275,16 +275,25 @@ export class GameService {
     const allowed = ['zyuratkul', 'nurgush', 'taganay', 'ural'];
     if (!allowed.includes(campThemeId)) throw new BadRequestException('Выберите один из доступных лагерей.');
     const result = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { campThemeId: true } });
+      const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { campThemeId: true, privacySettings: true } });
+      const settings = current.privacySettings && typeof current.privacySettings === 'object' && !Array.isArray(current.privacySettings) ? current.privacySettings as Record<string, unknown> : {};
+      const ownedCampThemes = new Set(Array.isArray(settings.ownedCampThemes) ? settings.ownedCampThemes.filter((id): id is string => typeof id === 'string' && allowed.includes(id)) : []);
+      if (allowed.includes(current.campThemeId)) ownedCampThemes.add(current.campThemeId);
       const firstChoice = !current.campThemeId || current.campThemeId === 'default';
-      if (!firstChoice) {
+      const purchased = !firstChoice && !ownedCampThemes.has(campThemeId);
+      if (purchased) {
         const charged = await tx.wallet.updateMany({ where: { userId, crystalsBalance: { gte: 20 } }, data: { crystalsBalance: { decrement: 20 } } });
         if (!charged.count) throw new BadRequestException('Для смены лагеря нужно 20 бриллиантов.');
       }
-      const user = await tx.user.update({ where: { id: userId }, data: { campThemeId }, select: { campThemeId: true } });
+      ownedCampThemes.add(campThemeId);
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { campThemeId, privacySettings: { ...settings, ownedCampThemes: [...ownedCampThemes] } as Prisma.InputJsonValue },
+        select: { campThemeId: true },
+      });
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
-      if (!firstChoice) await tx.transaction.create({ data: { walletId: wallet.id, type: 'spend', source: 'camp_change', amount: 20, currency: 'crystals', metadata: { campThemeId } } });
-      return { ...user, crystalsBalance: wallet.crystalsBalance };
+      if (purchased) await tx.transaction.create({ data: { walletId: wallet.id, type: 'spend', source: 'camp_purchase', amount: 20, currency: 'crystals', metadata: { campThemeId } } });
+      return { ...user, ownedCampThemes: [...ownedCampThemes], crystalsBalance: wallet.crystalsBalance, purchased };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return result;
   }

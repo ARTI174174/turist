@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { api, ApiError } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { usePlayerStore } from '@/store/usePlayerStore';
+import { Modal } from '@/components/ui/Modal';
 
 interface ShopItem { id: string; name: string; category: string; priceCoins: number | null; priceCrystals: number | null; rarity: string; assetUrl?: string | null }
 const PERMANENT_ITEMS = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
@@ -18,6 +19,7 @@ export function ShopPanel() {
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [changingCamp, setChangingCamp] = useState(false);
+  const [pendingCamp, setPendingCamp] = useState<{ id: string; name: string } | null>(null);
   const queryClient = useQueryClient();
   const { data: items = [] } = useQuery<ShopItem[]>({ queryKey: ['shop', 'items'], queryFn: () => api.get<ShopItem[]>('/shop/items') });
   const { data: inventory = [] } = useQuery<{ shopItem: { name: string } }[]>({ queryKey: ['inventory'], queryFn: () => api.get('/inventory') });
@@ -49,11 +51,18 @@ export function ShopPanel() {
     if (!user || changingCamp || user.campThemeId === campThemeId) return;
     setChangingCamp(true); setMessage(null);
     try {
-      const result = await api.post<{ campThemeId: string; crystalsBalance: number }>('/game/camp/change', { campThemeId });
-      updateUser({ campThemeId: result.campThemeId, wallet: { ...user.wallet, crystalsBalance: result.crystalsBalance } });
-      setMessage('Лагерь изменён');
+      const result = await api.post<{ campThemeId: string; ownedCampThemes: string[]; crystalsBalance: number; purchased: boolean }>('/game/camp/change', { campThemeId });
+      updateUser({ campThemeId: result.campThemeId, ownedCampThemes: result.ownedCampThemes, wallet: { ...user.wallet, crystalsBalance: result.crystalsBalance } });
+      setPendingCamp(null);
+      setMessage(result.purchased ? 'Лагерь куплен и выбран. Теперь его можно переключать бесплатно.' : 'Лагерь переключён бесплатно.');
     } catch (e) { setMessage(e instanceof ApiError ? e.message : 'Не удалось сменить лагерь'); }
     finally { setChangingCamp(false); }
+  }
+  function chooseCamp(id: string, name: string) {
+    if (!user || changingCamp || user.campThemeId === id) return;
+    const owned = new Set(user.ownedCampThemes ?? (user.campThemeId ? [user.campThemeId] : []));
+    if (owned.has(id)) void changeCamp(id);
+    else setPendingCamp({ id, name });
   }
   async function upgradeMagnet() {
     if (!magnet?.nextUpgrade || !user) return;
@@ -94,11 +103,15 @@ export function ShopPanel() {
         </section>;
       })}
       <section className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg">
-        <h3 className="mb-1 font-display text-sm text-parchment">Лагерь · 20 💎</h3>
-        <p className="mb-2 text-[10px] text-parchment/60">Смена места лагеря стоит 20 бриллиантов.</p>
+        <h3 className="mb-1 font-display text-sm text-parchment">Мои лагеря</h3>
+        <p className="mb-2 text-[10px] text-parchment/60">Первый лагерь уже открыт. Новый стоит 20 💎; открытые лагеря можно переключать бесплатно.</p>
         <div className="grid grid-cols-2 gap-2">{[
           ['zyuratkul', 'Зюраткуль'], ['nurgush', 'Нургуш'], ['taganay', 'Таганай'], ['ural', 'Урал'],
-        ].map(([id, name]) => <button key={id} onClick={() => void changeCamp(id)} disabled={changingCamp || user?.campThemeId === id} className="rounded-xl border border-brass/30 bg-black/20 px-3 py-2 text-xs text-parchment disabled:opacity-40">{user?.campThemeId === id ? `${name} · выбран` : name}</button>)}</div>
+        ].map(([id, name]) => {
+          const owned = user?.ownedCampThemes?.includes(id) ?? user?.campThemeId === id;
+          const selected = user?.campThemeId === id;
+          return <button key={id} onClick={() => chooseCamp(id, name)} disabled={changingCamp || selected} className="rounded-xl border border-brass/30 bg-black/20 px-3 py-2 text-xs text-parchment disabled:opacity-50">{selected ? `${name} · выбран` : owned ? `${name} · выбрать бесплатно` : `${name} · купить 20 💎`}</button>;
+        })}</div>
       </section>
       {magnet?.owned && <section className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg"><h3 className="font-display text-sm text-parchment">Магнит для бриллиантов</h3><p className="mt-1 text-[10px] text-parchment/60">Собирает все видимые бриллианты разом. Перезарядка: {magnet.cooldownMinutes} мин.</p>{magnet.nextUpgrade && <button onClick={() => void upgradeMagnet()} disabled={buyingId === 'magnet'} className="mt-2 w-full rounded-full border border-brass/50 bg-moss py-2 text-xs text-parchment shadow">Улучшить до {magnet.nextUpgrade.cooldownMinutes} мин. · {magnet.nextUpgrade.priceCoins.toLocaleString('ru-RU')} золота</button>}</section>}
     </div>}
@@ -107,5 +120,13 @@ export function ShopPanel() {
       <p className="mb-2 font-mono text-xs text-brass">{item.priceCoins != null ? `● ${item.priceCoins.toLocaleString('ru-RU')}` : `◆ ${item.priceCrystals}`}</p>
       <button onClick={() => void buy(item)} disabled={buyingId === item.id || owned} className="w-full rounded-full border border-brass/50 bg-moss py-1.5 text-[11px] text-parchment shadow disabled:opacity-50">{buyingId === item.id ? 'Покупаем…' : owned ? 'Уже есть' : 'Купить'}</button>
     </div>; })}{items.length === 0 && <p className="col-span-2 text-sm text-stone">Загрузка…</p>}</div>
+    {pendingCamp && <Modal title="Купить новый лагерь?" onClose={() => { if (!changingCamp) setPendingCamp(null); }}>
+      <p className="text-sm text-parchment">Открыть лагерь «{pendingCamp.name}» за 20 💎?</p>
+      <p className="mt-2 text-xs text-parchment/65">После покупки вы сможете переключаться между всеми открытыми лагерями бесплатно.</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button onClick={() => setPendingCamp(null)} disabled={changingCamp} className="rounded-full border border-brass/40 bg-black/25 py-2 text-sm text-parchment disabled:opacity-50">Отмена</button>
+        <button onClick={() => void changeCamp(pendingCamp.id)} disabled={changingCamp} className="rounded-full border border-brass/50 bg-moss py-2 text-sm text-parchment disabled:opacity-50">{changingCamp ? 'Покупаем…' : 'Купить за 20 💎'}</button>
+      </div>
+    </Modal>}
   </>;
 }

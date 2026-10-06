@@ -67,6 +67,7 @@ export interface AuthUser {
   nickname: string;
   role: string;
   campThemeId?: string;
+  ownedCampThemes?: string[];
   character: CharacterProfile;
   wallet: Wallet;
   progress: { xp: number; rankCode: string };
