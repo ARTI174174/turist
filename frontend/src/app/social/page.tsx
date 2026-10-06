@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { api, ApiError } from '@/lib/api';
 import { Poi } from '@/types';
 import { POICard } from '@/components/map/POICard';
+import { usePlayerStore } from '@/store/usePlayerStore';
 
 interface Friend {
   id: string; nickname: string; avatarEmoji: string; xp: number; level: number; borderColor: string; friendCount: number;
@@ -114,6 +115,8 @@ function FriendsListView({ onSelectFriend }: { onSelectFriend: (id: string) => v
 }
 
 function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () => void }) {
+  const router = useRouter();
+  const selectMapPoi = usePlayerStore((s) => s.selectPoi);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
   const { data, isLoading, error } = useQuery<FriendProfile>({
     queryKey: ['social', 'friend-profile', friendId],
@@ -134,6 +137,6 @@ function FriendProfileView({ friendId, onBack }: { friendId: string; onBack: () 
         <span className="min-w-0"><span className="block truncate text-sm text-parchment">{place.title}</span><span className="block text-[10px] text-stone">{place.category} · {place.difficulty}</span></span><span className="flex shrink-0 items-center gap-1 text-[10px] text-stone">{new Date(place.visitedAt).toLocaleDateString('ru-RU')}<ChevronRight size={14} /></span>
       </button>)}{data.visitedPlaces.length === 0 && <p className="text-xs text-stone">Пока нет посещённых мест.</p>}</div>
     </>}
-    {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} />}
+    {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} onShowOnMap={() => { selectMapPoi(selectedPoi); router.push('/map'); }} />}
   </div>;
 }

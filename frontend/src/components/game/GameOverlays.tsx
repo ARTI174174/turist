@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Compass, Gem, MapPin, Sparkles } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Modal } from '@/components/ui/Modal';
@@ -11,9 +12,13 @@ interface DailyStatus { streak: number; cycleDay: number; claimedToday: boolean;
 interface NewsPost { id: string; title: string; body: string }
 
 export function GameOverlays() {
+  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [mounted, setMounted] = useState(false);
   const [seenWelcome, setSeenWelcome] = useState(false);
+  const [introStep, setIntroStep] = useState(0);
+  const [tutorialError, setTutorialError] = useState<string | null>(null);
+  const [completingTutorial, setCompletingTutorial] = useState(false);
   const [dailyNoticeSeen, setDailyNoticeSeen] = useState(false);
   const [dailyNoticeChecked, setDailyNoticeChecked] = useState(false);
   const queryClient = useQueryClient();
@@ -25,7 +30,7 @@ export function GameOverlays() {
     setDailyNoticeSeen(false);
     setDailyNoticeChecked(false);
   }, [user?.id]);
-  const { data: welcome } = useQuery<{ completed: boolean }>({ queryKey: ['game', 'welcome', user?.id], queryFn: () => api.get('/game/welcome'), enabled: mounted && !!user });
+  const { data: welcome } = useQuery<{ completed: boolean; pointFound: boolean }>({ queryKey: ['game', 'welcome', user?.id], queryFn: () => api.get('/game/welcome'), enabled: mounted && !!user });
   const { data: daily } = useQuery<DailyStatus>({ queryKey: ['game', 'daily', user?.id], queryFn: () => api.get('/game/daily'), enabled: mounted && !!user });
   useEffect(() => {
     if (!mounted || !user) return;
@@ -54,12 +59,11 @@ export function GameOverlays() {
   }, [user, dailyStamp]);
 
   if (!mounted || !user) return null;
-  const showIntro = !!welcome && !welcome.completed && !seenWelcome;
+  const showIntro = !!welcome && !welcome.completed && !welcome.pointFound && !seenWelcome;
+  const showTutorialComplete = !!welcome && !welcome.completed && welcome.pointFound;
   const showDaily = !showIntro && dailyNoticeChecked && !!daily?.claimedToday && !dailyNoticeSeen;
 
-  async function finishIntro() {
-    await api.post('/game/welcome/complete', {});
-    await queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
+  function finishIntro() {
     setSeenWelcome(true);
   }
   function finishDaily() {
@@ -71,18 +75,44 @@ export function GameOverlays() {
     await api.post(`/game/news/${news.id}/read`, {});
     await queryClient.invalidateQueries({ queryKey: ['game', 'news', 'unread'] });
   }
+  async function completeTutorial() {
+    if (completingTutorial) return;
+    setCompletingTutorial(true);
+    setTutorialError(null);
+    try {
+      await api.post('/game/welcome/complete', {});
+      await queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
+      await queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
+      router.push('/map');
+    } catch {
+      setTutorialError('Не удалось открыть карту. Попробуй ещё раз.');
+    } finally { setCompletingTutorial(false); }
+  }
 
-  if (showIntro) return <Modal title="Добро пожаловать в ТУРИСТ" onClose={() => void finishIntro()}>
-    <div className="space-y-3 text-sm text-parchment/85">
-      <p className="text-center font-display text-base text-brass">Твоё приключение начинается рядом</p>
-      <Tip icon={<MapPin size={18} />} title="Исследуй карту" text="Иди к отмеченным местам и открывай их, находясь рядом." />
-      <Tip icon={<Compass size={18} />} title="Собирай награды" text="Получай золото, опыт и бриллианты за новые открытия." />
-      <Tip icon={<BookOpen size={18} />} title="Делись впечатлениями" text="Оставляй комментарии у точек и смотри достижения друзей." />
-      <button onClick={() => void finishIntro()} className="w-full rounded-full bg-moss py-3 font-display text-parchment">Начать путешествие</button>
-    </div>
+  if (showIntro) {
+    const steps = [
+      { icon: <Compass size={20} />, title: 'Добро пожаловать в лагерь', text: 'Сейчас ты в своём лагере — здесь спокойно и безопасно. Внизу находится главное меню: профиль, лагерь, карта «В путь», дневник и друзья.' },
+      { icon: <Sparkles size={20} />, title: 'Золото, бриллианты и уровень', text: 'Золото и бриллианты нужны для покупок в магазине. За открытия ты получаешь опыт и повышаешь уровень. Чем выше уровень, тем выше место в списке лучших игроков.' },
+      { icon: <MapPin size={20} />, title: 'Карта и магазин', text: 'На карте «В путь» находятся рейтинг игроков, задания и магазин. В магазине можно купить улучшения, которые помогают в путешествии.' },
+      { icon: <BookOpen size={20} />, title: 'Дневник и друзья', text: 'В дневнике смотри посещённые места, экспедиции и маршруты участников. В друзьях можно добавлять путешественников, смотреть их достижения и посещать места вместе.' },
+    ];
+    const step = steps[introStep];
+    return <Modal title="Добро пожаловать в ТУРИСТ" onClose={finishIntro}>
+      <div className="space-y-4 text-sm text-parchment/85">
+        <div className="flex items-center gap-3 rounded-2xl border border-brass/30 bg-black/20 p-4"><span className="text-brass">{step.icon}</span><div><p className="font-display text-base text-parchment">{step.title}</p><p className="mt-1 text-xs leading-relaxed text-parchment/70">{step.text}</p></div></div>
+        <p className="text-center text-[11px] text-parchment/50">{introStep + 1} / {steps.length}</p>
+        {introStep < steps.length - 1
+          ? <button onClick={() => setIntroStep((current) => current + 1)} className="w-full rounded-full bg-moss py-3 font-display text-parchment">Продолжить</button>
+          : <button onClick={() => { finishIntro(); router.push('/map'); }} className="w-full rounded-full bg-moss py-3 font-display text-parchment">В путь — открыть карту</button>}
+      </div>
+    </Modal>;
+  }
+
+  if (showTutorialComplete) return <Modal title="Поздравляем!" onClose={() => {}}>
+    <div className="space-y-3 text-center"><p className="font-display text-parchment">Ты открыл Челябинскую область!</p><p className="text-xs text-parchment/70">Теперь доступна вся карта и можно начать большое путешествие.</p>{tutorialError && <p className="text-xs text-danger">{tutorialError}</p>}<button onClick={() => void completeTutorial()} disabled={completingTutorial} className="w-full rounded-full bg-moss py-3 text-sm font-display text-parchment disabled:opacity-50">{completingTutorial ? 'Открываем карту…' : 'Начать моё путешествие по Челябинской области!'}</button></div>
   </Modal>;
 
-  if (showDaily && daily) return <Modal title="Награда путешественника" onClose={finishDaily}>
+  if (showDaily && daily) return <Modal title="Поздравляем! Награда путешественника" onClose={finishDaily}>
     <p className="mb-3 text-center text-xs text-parchment/65">Новый день начинается в 00:00 по Екатеринбургу. Если пропустить календарный день, серия начнётся заново.</p>
     <div className="grid grid-cols-2 gap-2">
       {daily.rewards.map((reward) => <div key={reward.day} className={`rounded-xl border p-2 text-center ${reward.day === daily.cycleDay ? 'border-brass bg-brass/15' : reward.completed ? 'border-moss/70 bg-moss/15' : 'border-brass/20 bg-black/20'}`}>
@@ -99,8 +129,4 @@ export function GameOverlays() {
   </Modal>;
 
   return null;
-}
-
-function Tip({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return <div className="flex gap-3 rounded-xl border border-brass/20 bg-black/15 p-3"><span className="mt-0.5 text-brass">{icon}</span><div><p className="font-semibold text-parchment">{title}</p><p className="mt-0.5 text-xs text-parchment/65">{text}</p></div></div>;
 }

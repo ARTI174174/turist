@@ -57,6 +57,8 @@ async function main() {
     const reward = CATEGORY_REWARDS[poi.categoryCode] ?? poi.baseXp;
     const data = {
       categoryId,
+      status: 'active' as const,
+      visibility: poi.visibility ?? 'public',
       markerAsset: `/assets/poi-markers/${CATEGORY_MARKERS[poi.categoryCode] ?? 3}.png`,
       lat: poi.lat,
       lng: poi.lng,

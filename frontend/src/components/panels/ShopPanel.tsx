@@ -7,7 +7,7 @@ import { api, ApiError } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { usePlayerStore } from '@/store/usePlayerStore';
 
-interface ShopItem { id: string; name: string; category: string; priceCoins: number | null; priceCrystals: number | null; rarity: string }
+interface ShopItem { id: string; name: string; category: string; priceCoins: number | null; priceCrystals: number | null; rarity: string; assetUrl?: string | null }
 const PERMANENT_ITEMS = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
 
 export function ShopPanel() {
@@ -79,8 +79,8 @@ export function ShopPanel() {
   }
   return <>
     <p className="mb-4 text-xs text-parchment/65">Улучшения помогают замечать находки дальше и открывать точки, не подходя вплотную.</p>
-    {message && <p className="mb-3 rounded-xl bg-forest/10 p-2 text-center text-xs text-forest">{message}</p>}
-    <section className="mb-4 rounded-2xl border border-brass/30 bg-black/20 p-3"><h3 className="font-display text-sm text-parchment">Случайная находка</h3><p className="my-1 text-[10px] text-parchment/60">Откроем карточку новой точки: памятник, историческое или редкое место.</p><button onClick={() => void buyRandomPoint()} disabled={!!buyingId} className="w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{buyingId === 'random-point' ? 'Ищем…' : 'Получить случайную точку · 20 💎'}</button></section>
+    {message && <p className="mb-3 rounded-xl border border-brass/25 bg-forest/35 p-2 text-center text-xs text-parchment">{message}</p>}
+    <section className="mb-4 rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg"><h3 className="font-display text-sm text-parchment">Случайная находка</h3><p className="my-1 text-[10px] text-parchment/60">Откроем карточку новой точки: памятник, историческое или редкое место.</p><button onClick={() => void buyRandomPoint()} disabled={!!buyingId} className="w-full rounded-full border border-brass/50 bg-moss py-2 text-xs text-parchment shadow disabled:opacity-50">{buyingId === 'random-point' ? 'Ищем…' : 'Получить случайную точку · 20 💎'}</button></section>
     {upgradesLoading ? <p className="mb-4 text-xs text-stone">Загружаем улучшения…</p> : upgrades && <div className="mb-5 space-y-3">
       {(['glasses', 'gloves'] as const).map((kind) => {
         const currentLevel = kind === 'glasses' ? upgrades.glassesLevel : upgrades.glovesLevel;
@@ -88,24 +88,24 @@ export function ShopPanel() {
         const title = kind === 'glasses' ? 'Очки следопыта' : 'Перчатки исследователя';
         const description = kind === 'glasses' ? `Сейчас находки видны в радиусе ${currentValue >= 1000 ? `${currentValue / 1000} км` : `${currentValue} м`}.` : `Сейчас можно открывать места и собирать бриллианты ещё на ${currentValue} м дальше.`;
         const next = upgrades.items.find((item) => item.kind === kind && item.level === currentLevel + 1);
-        return <section key={kind} className="rounded-2xl border border-brass/30 bg-black/20 p-3">
+        return <section key={kind} className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg">
           <div className="flex items-center gap-3"><img src={kind === 'glasses' ? '/assets/shop/glasses.png' : '/assets/shop/gloves.png'} alt="" className="h-14 w-14 rounded-xl object-contain" /><div><h3 className="font-display text-sm text-parchment">{title}</h3><p className="text-[10px] text-parchment/60">{description}</p></div></div>
-          {next ? <button onClick={() => void buyUpgrade(kind, next.level, next.price)} disabled={buyingId === `${kind}-${next.level}`} className="mt-3 w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{buyingId === `${kind}-${next.level}` ? 'Покупаем…' : `Улучшить до ${kind === 'glasses' ? `${next.meters / 1000} км` : `+${next.meters} м`} · ${next.price.toLocaleString('ru-RU')} золота`}</button> : <p className="mt-3 text-center text-[11px] text-brass">Максимальный уровень открыт</p>}
+          {next ? <button onClick={() => void buyUpgrade(kind, next.level, next.price)} disabled={buyingId === `${kind}-${next.level}`} className="mt-3 w-full rounded-full border border-brass/50 bg-moss py-2 text-xs text-parchment shadow disabled:opacity-50">{buyingId === `${kind}-${next.level}` ? 'Покупаем…' : `Улучшить до ${kind === 'glasses' ? `${next.meters / 1000} км` : `+${next.meters} м`} · ${next.price.toLocaleString('ru-RU')} золота`}</button> : <p className="mt-3 text-center text-[11px] text-brass">Максимальный уровень открыт</p>}
         </section>;
       })}
-      <section className="rounded-2xl border border-brass/30 bg-black/20 p-3">
+      <section className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg">
         <h3 className="mb-1 font-display text-sm text-parchment">Лагерь · 20 💎</h3>
         <p className="mb-2 text-[10px] text-parchment/60">Смена места лагеря стоит 20 бриллиантов.</p>
         <div className="grid grid-cols-2 gap-2">{[
           ['zyuratkul', 'Зюраткуль'], ['nurgush', 'Нургуш'], ['taganay', 'Таганай'], ['ural', 'Урал'],
-        ].map(([id, name]) => <button key={id} onClick={() => void changeCamp(id)} disabled={changingCamp || user?.campThemeId === id} className="rounded-full border border-brass/30 px-3 py-2 text-xs text-parchment disabled:opacity-40">{user?.campThemeId === id ? `${name} · выбран` : name}</button>)}</div>
+        ].map(([id, name]) => <button key={id} onClick={() => void changeCamp(id)} disabled={changingCamp || user?.campThemeId === id} className="rounded-xl border border-brass/30 bg-black/20 px-3 py-2 text-xs text-parchment disabled:opacity-40">{user?.campThemeId === id ? `${name} · выбран` : name}</button>)}</div>
       </section>
-      {magnet?.owned && <section className="rounded-2xl border border-brass/30 bg-black/20 p-3"><h3 className="font-display text-sm text-parchment">Магнит для бриллиантов</h3><p className="mt-1 text-[10px] text-parchment/60">Собирает все видимые бриллианты разом. Перезарядка: {magnet.cooldownMinutes} мин.</p>{magnet.nextUpgrade && <button onClick={() => void upgradeMagnet()} disabled={buyingId === 'magnet'} className="mt-2 w-full rounded-full bg-moss py-2 text-xs text-parchment">Улучшить до {magnet.nextUpgrade.cooldownMinutes} мин. · {magnet.nextUpgrade.priceCoins.toLocaleString('ru-RU')} золота</button>}</section>}
+      {magnet?.owned && <section className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg"><h3 className="font-display text-sm text-parchment">Магнит для бриллиантов</h3><p className="mt-1 text-[10px] text-parchment/60">Собирает все видимые бриллианты разом. Перезарядка: {magnet.cooldownMinutes} мин.</p>{magnet.nextUpgrade && <button onClick={() => void upgradeMagnet()} disabled={buyingId === 'magnet'} className="mt-2 w-full rounded-full border border-brass/50 bg-moss py-2 text-xs text-parchment shadow">Улучшить до {magnet.nextUpgrade.cooldownMinutes} мин. · {magnet.nextUpgrade.priceCoins.toLocaleString('ru-RU')} золота</button>}</section>}
     </div>}
-    <div className="grid grid-cols-2 gap-3">{items.map((item) => { const owned = PERMANENT_ITEMS.has(item.name) && inventory.some((entry) => entry.shopItem.name === item.name); return <div key={item.id} className="rounded-2xl bg-white/50 p-3">
-      <div className="mb-2 h-16 rounded-xl bg-gradient-to-br from-moss to-forest" /><p className="mb-1 text-xs text-ink">{item.name}</p>
-      <p className="mb-2 font-mono text-xs text-amber-dark">{item.priceCoins != null ? `● ${item.priceCoins}` : `◆ ${item.priceCrystals}`}</p>
-      <button onClick={() => void buy(item)} disabled={buyingId === item.id || owned} className="w-full rounded-full bg-forest py-1.5 text-[11px] text-parchment disabled:opacity-50">{buyingId === item.id ? '…' : owned ? 'Уже есть' : 'Купить'}</button>
+    <div className="grid grid-cols-2 gap-3">{items.map((item) => { const owned = PERMANENT_ITEMS.has(item.name) && inventory.some((entry) => entry.shopItem.name === item.name); return <div key={item.id} className="rounded-2xl border border-brass/30 bg-panel/80 p-3 shadow-lg">
+      <div className="mb-2 flex h-20 items-center justify-center rounded-xl border border-brass/15 bg-black/20">{item.assetUrl ? <img src={item.assetUrl} alt="" className="h-full w-full object-contain p-2" /> : <span className="text-3xl text-brass">✦</span>}</div><p className="mb-1 min-h-8 text-xs text-parchment">{item.name}</p>
+      <p className="mb-2 font-mono text-xs text-brass">{item.priceCoins != null ? `● ${item.priceCoins.toLocaleString('ru-RU')}` : `◆ ${item.priceCrystals}`}</p>
+      <button onClick={() => void buy(item)} disabled={buyingId === item.id || owned} className="w-full rounded-full border border-brass/50 bg-moss py-1.5 text-[11px] text-parchment shadow disabled:opacity-50">{buyingId === item.id ? 'Покупаем…' : owned ? 'Уже есть' : 'Купить'}</button>
     </div>; })}{items.length === 0 && <p className="col-span-2 text-sm text-stone">Загрузка…</p>}</div>
   </>;
 }

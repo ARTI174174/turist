@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AnticheatService } from './anticheat.service';
 import { ProgressionService } from '../progression/progression.service';
@@ -221,6 +222,13 @@ export class VisitsService {
         },
       });
       await tx.poi.update({ where: { id: poi.id }, data: { visitCount: { increment: 1 } } });
+      if (poi.title === 'Открыть Челябинскую область') {
+        const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { privacySettings: true } });
+        const settings = user.privacySettings && typeof user.privacySettings === 'object' && !Array.isArray(user.privacySettings) ? user.privacySettings as Record<string, unknown> : {};
+        if (settings.tutorialRequired === true) {
+          await tx.user.update({ where: { id: userId }, data: { privacySettings: { ...settings, tutorialPointFound: true } as Prisma.InputJsonValue } });
+        }
+      }
       await tx.poiFlag.deleteMany({ where: { poiId: poi.id, userId: { not: userId } } });
       if (activeEvent) {
         const expeditionIds = activeEvent.poiIds as string[];

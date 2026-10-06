@@ -2831,4 +2831,18 @@ export const POI_CATALOG: PoiSeedData[] = [
     requiresProof: false,
     visibility: 'secret' as const,
   })),
+  {
+    title: 'Открыть Челябинскую область',
+    categoryCode: 'city',
+    lat: 55.160058,
+    lng: 61.402052,
+    geofenceRadiusM: 13000,
+    descriptionHistory: 'Это первая точка путешествия по Челябинской области. Добро пожаловать в экспедицию! Исследуй её, чтобы открыть карту и начать собирать собственный туристический паспорт.',
+    interestingFacts: ['Стартовая точка для новых путешественников.', 'За открытие начисляется 50 опыта и 50 золота.'],
+    bestSeason: ['summer', 'autumn', 'winter', 'spring'],
+    difficulty: 'easy',
+    baseXp: 50,
+    baseCoins: 50,
+    requiresProof: false,
+  },
 ];

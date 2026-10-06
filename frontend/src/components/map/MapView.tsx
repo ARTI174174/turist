@@ -8,6 +8,7 @@ import { GeoPosition } from '@/hooks/useGeolocation';
 
 interface MapViewProps {
   pois: Poi[];
+  selectedPoi?: Poi | null;
   crystals?: Crystal[];
   position: GeoPosition | null;
   userAvatar: string;
@@ -53,7 +54,7 @@ const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { pois, crystals = [], position, userAvatar, onSelectPoi, onSelectCrystal },
+  { pois, selectedPoi = null, crystals = [], position, userAvatar, onSelectPoi, onSelectCrystal },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -195,6 +196,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   // POI-маркеры. Зависимость от mapReady устраняет гонку между React-данными
   // и асинхронной загрузкой MapLibre.
+  useEffect(() => {
+    if (!mapReady || !selectedPoi) return;
+    const map = mapRef.current;
+    if (map) map.flyTo({ center: [selectedPoi.lng, selectedPoi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
+  }, [selectedPoi, mapReady]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -405,9 +412,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     if (!hasCenteredOnceRef.current) {
       hasCenteredOnceRef.current = true;
-      map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
+      if (selectedPoi) map.flyTo({ center: [selectedPoi.lng, selectedPoi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
+      else map.flyTo({ center: [position.lng, position.lat], zoom: 13 });
     }
-  }, [position, mapReady, userAvatar]);
+  }, [position, mapReady, userAvatar, selectedPoi]);
 
   return <div ref={containerRef} className="map-viewport" />;
 });

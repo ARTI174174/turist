@@ -14,8 +14,7 @@ import { AvatarImage } from '@/components/character/AvatarImage';
 export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [archetype, setArchetype] = useState<'male' | 'female'>('male');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [avatarEmoji, setAvatarEmoji] = useState(FREE_AVATARS[0].src);
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
@@ -39,7 +38,7 @@ export default function RegisterPage() {
       const res = await api.post<AuthResponse>('/auth/register', {
         nickname,
         password,
-        archetype,
+        archetype: 'male',
         avatarEmoji,
         campThemeId,
         challengeId: challenge?.challengeId,
@@ -60,36 +59,11 @@ export default function RegisterPage() {
       <div className="mx-auto my-2 w-full max-w-sm rounded-[30px] border border-brass/60 bg-panel/95 p-4 text-parchment shadow-2xl backdrop-blur sm:my-8 sm:p-5">
         <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-moss-light">Экспедиционный клуб</p>
         <h1 className="mb-1 text-center font-display text-3xl text-parchment">Новый турист</h1>
-        <p className="mb-6 text-center text-sm text-parchment/65">Выбери образ и отправляйся исследовать Урал</p>
+        <p className="mb-6 text-center text-sm text-parchment/65">Выбери аватар и отправляйся исследовать Урал</p>
 
         {step === 1 && (
           <div className="space-y-6">
-            <CharacterPreview archetype={archetype} className="mx-auto h-48 w-48 touch-none sm:h-64 sm:w-64" />
-            <div className="flex gap-3">
-              {(['male', 'female'] as const).map((a) => (
-                <button
-                  key={a}
-                  onClick={() => setArchetype(a)}
-                  className={clsx(
-                    'flex-1 rounded-xl border-2 py-3 font-display text-sm',
-                    archetype === a ? 'border-brass bg-moss/20 text-moss-light' : 'border-brass/50 text-parchment/65',
-                  )}
-                >
-                  {a === 'male' ? 'Парень' : 'Девушка'}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setStep(2)}
-              className="adventure-primary w-full rounded-full py-3 font-display"
-            >
-              Далее
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-6">
+            <CharacterPreview archetype="male" className="mx-auto h-48 w-48 touch-none sm:h-64 sm:w-64" />
             <div className="text-center">
               <div className="avatar-portrait mx-auto mb-3 h-24 w-24 rounded-full border-[3px] border-brass p-1 shadow-xl">
                 <AvatarImage value={avatarEmoji} className="h-full w-full rounded-full" />
@@ -114,24 +88,14 @@ export default function RegisterPage() {
               ))}
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="adventure-secondary rounded-full px-5 py-3 font-display text-sm"
-              >
-                Назад
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="adventure-primary flex-1 rounded-full py-3 font-display"
-              >
-                Далее
-              </button>
-            </div>
+            <button
+              onClick={() => setStep(2)}
+              className="adventure-primary w-full rounded-full py-3 font-display"
+            >Далее</button>
           </div>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <div className="space-y-4">
             <h2 className="text-center font-display text-lg text-parchment">Выбери первый лагерь</h2>
             <p className="text-center text-xs text-parchment/65">Позже сменить его можно будет в магазине за 20 бриллиантов.</p>
@@ -145,11 +109,11 @@ export default function RegisterPage() {
                 <img src={image} alt="" className="h-28 w-full object-cover" /><span className="block p-2 text-sm text-parchment">{title}</span>
               </button>)}
             </div>
-            <div className="flex gap-3"><button type="button" onClick={() => setStep(2)} className="adventure-secondary rounded-full px-5 py-3 font-display text-sm">Назад</button><button type="button" disabled={!campThemeId} onClick={() => setStep(4)} className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-40">Далее</button></div>
+            <div className="flex gap-3"><button type="button" onClick={() => setStep(1)} className="adventure-secondary rounded-full px-5 py-3 font-display text-sm">Назад</button><button type="button" disabled={!campThemeId} onClick={() => setStep(3)} className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-40">Далее</button></div>
           </div>
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Игровой ник" value={nickname} onChange={setNickname} autoComplete="username" hint="3–20 символов: латинские буквы, цифры или _" placeholder="Придумайте ник" />
             <Field label="Пароль для входа" value={password} onChange={setPassword} type="password" autoComplete="new-password" hint="Минимум 8 символов" placeholder="Придумайте пароль" />
@@ -160,7 +124,7 @@ export default function RegisterPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 className="adventure-secondary rounded-full px-5 py-3 font-display text-sm"
               >
                 Назад

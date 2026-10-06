@@ -22,6 +22,15 @@ export class PoiService {
    * карты после посещения, оставаясь видимыми для остальных игроков.
    */
   async findInBbox(query: QueryPoiDto, userXp = 0, userId?: string) {
+    if (userId) {
+      const player = await this.prisma.user.findUnique({ where: { id: userId }, select: { privacySettings: true } });
+      const settings = player?.privacySettings && typeof player.privacySettings === 'object' && !Array.isArray(player.privacySettings) ? player.privacySettings as Record<string, unknown> : {};
+      if (settings.tutorialRequired === true) {
+        if (settings.tutorialPointFound === true) return [];
+        const startPoint = await this.prisma.poi.findFirst({ where: { title: 'Открыть Челябинскую область', status: 'active' }, include: { category: true } });
+        return startPoint ? [startPoint] : [];
+      }
+    }
     const bbox = parseBbox(query.bbox);
     const categoryCodes = query.categories?.split(',').filter(Boolean);
     const visitedIds = await this.getVisitedPoiIds(userId);

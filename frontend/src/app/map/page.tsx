@@ -26,6 +26,7 @@ export default function MapPage() {
   const [crystalMsg, setCrystalMsg] = useState<string | null>(null);
   const [collectingCrystal, setCollectingCrystal] = useState(false);
   const mapRef = useRef<MapViewHandle>(null);
+  const starterPointOpenedRef = useRef(false);
   const queryClient = useQueryClient();
 
   useEffect(() => setHydrated(true), []);
@@ -47,18 +48,27 @@ export default function MapPage() {
     queryFn: () => api.get<Poi[]>(position ? `/poi?lat=${position.lat}&lng=${position.lng}` : '/poi'),
     enabled: !!user,
   });
+  const { data: welcome } = useQuery<{ completed: boolean; pointFound: boolean }>({ queryKey: ['game', 'welcome', user?.id], queryFn: () => api.get('/game/welcome'), enabled: !!user });
+  useEffect(() => {
+    if (welcome?.completed || starterPointOpenedRef.current) return;
+    const starter = pois.find((poi) => poi.title === 'Открыть Челябинскую область');
+    if (starter) {
+      starterPointOpenedRef.current = true;
+      selectPoi(starter);
+    }
+  }, [welcome?.completed, pois, selectPoi]);
 
   const { data: secretPois = [] } = useQuery<Poi[]>({
     queryKey: ['game', 'secrets', 'nearby', posKey],
     queryFn: () => api.get<Poi[]>(`/game/secrets/nearby?lat=${position!.lat}&lng=${position!.lng}`),
-    enabled: !!user && !!position,
+    enabled: !!user && !!position && !!welcome?.completed,
     refetchInterval: 15_000,
   });
 
   const { data: crystals = [] } = useQuery<Crystal[]>({
     queryKey: ['crystals', 'nearby', posKey],
     queryFn: () => api.get<Crystal[]>(`/crystals/nearby?lat=${position!.lat}&lng=${position!.lng}`),
-    enabled: !!user && !!position,
+    enabled: !!user && !!position && !!welcome?.completed,
     refetchInterval: 15_000,
   });
   const { data: magnet } = useQuery<{ owned: boolean; ready: boolean; readyAt: string | null; cooldownMinutes: number }>({ queryKey: ['crystals', 'magnet-status'], queryFn: () => api.get('/crystals/magnet/status'), enabled: !!user, refetchInterval: 20_000 });
@@ -108,6 +118,7 @@ export default function MapPage() {
       <MapView
         ref={mapRef}
         pois={[...pois, ...secretPois]}
+        selectedPoi={selectedPoi}
         crystals={crystals}
         position={position}
         userAvatar={user.character?.avatarEmoji ?? '🙂'}
@@ -178,7 +189,18 @@ export default function MapPage() {
       {!selectedPoi && magnet?.owned && <button onClick={() => void handleMagnet()} disabled={!magnet.ready || !position} title={magnet.ready ? 'Собрать видимые бриллианты магнитом' : 'Магнит перезаряжается'} className="hud-panel absolute bottom-[calc(10.75rem+env(safe-area-inset-bottom,0px))] left-3 z-20 rounded-full p-3 text-sky-200 shadow-lg disabled:opacity-40"><Magnet size={21} /></button>}
 
       {selectedPoi && (
-        <POICard poi={selectedPoi} position={position} onClose={() => selectPoi(null)} />
+        <POICard
+          poi={selectedPoi}
+          position={position}
+          onClose={() => selectPoi(null)}
+          onShowOnMap={() => { mapRef.current?.focusOnPoi(selectedPoi); selectPoi(null); }}
+          onTutorialComplete={async () => {
+            await api.post('/game/welcome/complete', {});
+            await queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
+            await queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
+            selectPoi(null);
+          }}
+        />
       )}
 
       {!selectedPoi && <BottomNav />}

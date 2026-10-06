@@ -20,12 +20,19 @@ export class GameService {
   constructor(private prisma: PrismaService) {}
 
   async welcomeStatus(userId: string) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { welcomeSeenAt: true } });
-    return { completed: !!user.welcomeSeenAt };
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { privacySettings: true } });
+    const settings = user.privacySettings && typeof user.privacySettings === 'object' && !Array.isArray(user.privacySettings) ? user.privacySettings as Record<string, unknown> : {};
+    const required = settings.tutorialRequired === true;
+    return { completed: !required, pointFound: settings.tutorialPointFound === true };
   }
 
   async completeWelcome(userId: string) {
-    await this.prisma.user.updateMany({ where: { id: userId, welcomeSeenAt: null }, data: { welcomeSeenAt: new Date() } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { privacySettings: true } });
+    const settings = user.privacySettings && typeof user.privacySettings === 'object' && !Array.isArray(user.privacySettings) ? user.privacySettings as Record<string, unknown> : {};
+    if (settings.tutorialRequired === true && settings.tutorialPointFound !== true) {
+      throw new BadRequestException({ code: 'TUTORIAL_POINT_REQUIRED', message: 'Сначала откройте стартовую точку рядом с Челябинском.' });
+    }
+    await this.prisma.user.update({ where: { id: userId }, data: { welcomeSeenAt: new Date(), privacySettings: { ...settings, tutorialRequired: false } as Prisma.InputJsonValue } });
     return { success: true };
   }
 

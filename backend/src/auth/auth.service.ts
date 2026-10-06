@@ -89,6 +89,7 @@ export class AuthService {
         nicknameLower,
         passwordHash,
         campThemeId: dto.campThemeId,
+        privacySettings: { tutorialRequired: true, tutorialPointFound: false },
         character: { create: { archetype: dto.archetype, avatarEmoji: dto.avatarEmoji ?? '/assets/avatars/1.jpg' } },
         wallet: { create: { coinsBalance: 0, crystalsBalance: 0 } },
         progress: { create: { xp: 0, rankCode: 'novice' } },

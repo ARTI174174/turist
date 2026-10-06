@@ -26,11 +26,13 @@ interface POICardProps {
   position: GeoPosition | null;
   onClose: () => void;
   hideExplore?: boolean;
+  onShowOnMap?: () => void;
+  onTutorialComplete?: () => Promise<void>;
 }
 
 type FlowState = 'idle' | 'starting' | 'walking' | 'dwelling' | 'ready' | 'submitting' | 'success' | 'review' | 'error';
 
-export function POICard({ poi, position, onClose, hideExplore = false }: POICardProps) {
+export function POICard({ poi, position, onClose, hideExplore = false, onShowOnMap, onTutorialComplete }: POICardProps) {
   const [flow, setFlow] = useState<FlowState>('idle');
   const [attempt, setAttempt] = useState<VisitAttemptStart | null>(null);
   const [dwellSeconds, setDwellSeconds] = useState(0);
@@ -44,6 +46,8 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
   const [commentText, setCommentText] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
   const [sendingComment, setSendingComment] = useState(false);
+  const [tutorialError, setTutorialError] = useState<string | null>(null);
+  const [finishingTutorial, setFinishingTutorial] = useState(false);
   const { data: comments = [] } = useQuery<PoiComment[]>({
     queryKey: ['poi', poi.id, 'comments'],
     queryFn: () => api.get<PoiComment[]>(`/poi/${poi.id}/comments`),
@@ -160,6 +164,15 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
     }
   }
 
+  async function finishTutorial() {
+    if (!onTutorialComplete || finishingTutorial) return;
+    setFinishingTutorial(true);
+    setTutorialError(null);
+    try { await onTutorialComplete(); }
+    catch (error) { setTutorialError(error instanceof ApiError ? error.message : 'Не удалось открыть карту путешествия'); }
+    finally { setFinishingTutorial(false); }
+  }
+
   return (
     <div
       className="bg-adventure pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[75vh] overflow-y-auto rounded-t-3xl border border-brass/50 shadow-2xl"
@@ -183,6 +196,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
       </div>
 
       <div className="space-y-4 px-4 py-4">
+        {onShowOnMap && <button onClick={onShowOnMap} className="flex w-full items-center justify-center gap-2 rounded-xl border border-brass/40 bg-black/20 py-2.5 text-xs text-parchment"><MapPin size={15} className="text-brass" />Показать на карте</button>}
         <div className="flex items-center gap-2 font-mono text-xs text-stone">
           <MapPin size={14} />
           {hideExplore ? 'Вы уже посетили это место' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
@@ -214,6 +228,7 @@ export function POICard({ poi, position, onClose, hideExplore = false }: POICard
           onStart={handleStartExplore}
           onComplete={handleComplete}
         />}
+        {!hideExplore && flow === 'success' && poi.title === 'Открыть Челябинскую область' && onTutorialComplete && <div className="space-y-2 rounded-2xl border border-brass/40 bg-forest/20 p-3 text-center"><p className="font-display text-sm text-brass">Поздравляем! Ты открыл Челябинскую область</p><p className="text-xs text-parchment/75">Теперь доступна вся карта и можно начать большое путешествие.</p>{tutorialError && <p className="text-xs text-danger">{tutorialError}</p>}<button onClick={() => void finishTutorial()} disabled={finishingTutorial} className="w-full rounded-full bg-moss py-3 text-xs font-semibold text-parchment disabled:opacity-50">{finishingTutorial ? 'Открываем карту…' : 'Начать моё путешествие по Челябинской области!'}</button></div>}
 
         <section className="border-t border-brass/25 pt-3">
           <h3 className="mb-2 flex items-center gap-2 font-display text-sm text-parchment">
@@ -271,7 +286,7 @@ function ExploreControls({
     return (
       <div className="flex flex-col items-center gap-2 rounded-2xl bg-forest/10 py-6 text-center">
         <Sparkles className="text-amber" size={28} />
-        <p className="font-display text-lg text-forest">Точка открыта!</p>
+        <p className="font-display text-lg text-forest">Поздравляем! Точка открыта</p>
         <p className="font-mono text-sm text-ink/70">
           +{reward.xpAwarded ?? 0} опыта · +{reward.coinsAwarded ?? 0} золота · +{reward.crystalsAwarded ?? 0} 💎
         </p>

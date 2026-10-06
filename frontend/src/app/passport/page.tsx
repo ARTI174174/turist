@@ -14,6 +14,7 @@ import { POICard } from '@/components/map/POICard';
 import { ChevronRight } from 'lucide-react';
 import { TravelActivities } from '@/components/panels/TravelActivities';
 import { RouteSuggestions } from '@/components/panels/RouteSuggestions';
+import { usePlayerStore } from '@/store/usePlayerStore';
 
 interface PassportVisit {
   id: string;
@@ -34,6 +35,7 @@ const DIFFICULTY_LABEL: Record<string, string> = {
 export default function PassportPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const selectMapPoi = usePlayerStore((s) => s.selectPoi);
   const [hydrated, setHydrated] = useState(false);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
   const [placeFilter, setPlaceFilter] = useState<'all' | 'mountain' | 'city' | 'lake'>('all');
@@ -100,7 +102,7 @@ export default function PassportPage() {
         </div>
       </div>
 
-      {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} />}
+      {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} onShowOnMap={() => { selectMapPoi(selectedPoi); router.push('/map'); }} />}
       <BottomNav />
     </main>
   );
