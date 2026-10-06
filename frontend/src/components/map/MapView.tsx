@@ -222,25 +222,77 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    const updateMarkerScale = () => {
+    const renderPoiMarkers = () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
       const zoom = map.getZoom();
-      // Keep settlement markers at their familiar size. Other markers shrink
-      // smoothly at regional zooms and reach their current size by zoom 12.
-      const scale = Math.max(0.45, Math.min(1, 0.45 + ((zoom - 7) / 5) * 0.55));
-      for (const marker of markersRef.current) {
-        const element = marker.getElement();
-        const art = element.querySelector<HTMLElement>('.poi-marker-art');
-        if (!art) continue;
-        const category = element.dataset.poiCategory;
-        const fixedSize = category === 'city' || category === 'township' || category === 'village';
-        art.style.transform = `scale(${fixedSize ? 1 : scale})`;
-      }
-    };
+      const settlement = (poi: Poi) => ['city', 'township', 'village'].includes(poi.category?.code ?? '');
+      const individualPois: Poi[] = [];
+      const clusters: Array<{ points: Poi[]; anchorX: number; anchorY: number; sumX: number; sumY: number }> = [];
 
-    for (const poi of pois) {
+      // At regional zooms nearby non-settlement locations become one counter.
+      // This keeps the map readable while keeping every point reachable by zooming in.
+      if (zoom <= 10.5) {
+        const radius = 48;
+        const cells = new Map<string, number[]>();
+        for (const poi of pois) {
+          if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
+          if (settlement(poi)) { individualPois.push(poi); continue; }
+          const projected = map.project([poi.lng, poi.lat]);
+          const cellX = Math.floor(projected.x / radius);
+          const cellY = Math.floor(projected.y / radius);
+          let nearestCluster = -1;
+          let nearestDistance = radius;
+          for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+            for (const index of cells.get(`${cellX + dx}:${cellY + dy}`) ?? []) {
+              const cluster = clusters[index];
+              const distance = Math.hypot(projected.x - cluster.anchorX, projected.y - cluster.anchorY);
+              if (distance < nearestDistance) { nearestCluster = index; nearestDistance = distance; }
+            }
+          }
+          if (nearestCluster >= 0) {
+            const cluster = clusters[nearestCluster];
+            cluster.points.push(poi); cluster.sumX += projected.x; cluster.sumY += projected.y;
+          } else {
+            const index = clusters.push({ points: [poi], anchorX: projected.x, anchorY: projected.y, sumX: projected.x, sumY: projected.y }) - 1;
+            const key = `${cellX}:${cellY}`;
+            cells.set(key, [...(cells.get(key) ?? []), index]);
+          }
+        }
+        for (const cluster of clusters) {
+          if (cluster.points.length === 1) individualPois.push(cluster.points[0]);
+          else {
+            const center = map.unproject([cluster.sumX / cluster.points.length, cluster.sumY / cluster.points.length]);
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.setAttribute('aria-label', `${cluster.points.length} точек рядом`);
+            el.title = `${cluster.points.length} точек рядом — нажмите, чтобы приблизить карту`;
+            Object.assign(el.style, {
+              display: 'grid', width: '40px', height: '40px', padding: '0', placeItems: 'center',
+              border: '2px solid #e7d19a', borderRadius: '50%', background: '#1d352a',
+              color: '#fff1c7', font: '700 14px Manrope, sans-serif',
+              boxShadow: '0 2px 7px rgba(0,0,0,.65)', cursor: 'pointer', zIndex: '9',
+            });
+            el.textContent = String(cluster.points.length);
+            const marker = new Marker({ element: el, anchor: 'center' }).setLngLat([center.lng, center.lat]).addTo(map);
+            el.addEventListener('click', () => {
+              const xs = cluster.points.map((poi) => poi.lng);
+              const ys = cluster.points.map((poi) => poi.lat);
+              const bounds: [[number, number], [number, number]] = [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+              if (Math.abs(bounds[1][0] - bounds[0][0]) < 0.0001 && Math.abs(bounds[1][1] - bounds[0][1]) < 0.0001) {
+                map.easeTo({ center: [center.lng, center.lat], zoom: Math.min(12, zoom + 2), duration: 450 });
+              } else {
+                map.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: 450 });
+              }
+            });
+            markersRef.current.push(marker);
+          }
+        }
+      } else {
+        individualPois.push(...pois);
+      }
+
+    for (const poi of individualPois) {
       if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
 
       const el = document.createElement('button');
@@ -314,6 +366,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         badge.appendChild(svg); markerArt.appendChild(badge);
       }
       el.appendChild(markerArt);
+      const markerScale = settlement(poi) ? 1 : Math.max(0.4, Math.min(1, 0.4 + ((zoom - 7) / 5) * 0.6));
+      markerArt.style.transform = `scale(${markerScale})`;
 
       const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
@@ -325,9 +379,17 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       });
       markersRef.current.push(marker);
     }
-    updateMarkerScale();
-    map.on('zoom', updateMarkerScale);
-    return () => map.off('zoom', updateMarkerScale);
+    };
+
+    renderPoiMarkers();
+    map.on('zoomend', renderPoiMarkers);
+    map.on('moveend', renderPoiMarkers);
+    return () => {
+      map.off('zoomend', renderPoiMarkers);
+      map.off('moveend', renderPoiMarkers);
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+    };
   }, [pois, mapReady]);
 
   // Кристаллы.
