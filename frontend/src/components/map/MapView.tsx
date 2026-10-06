@@ -50,13 +50,14 @@ const POI_MARKERS: Record<string, number> = {
 };
 // При наложении точек важные категории остаются сверху и доступны для нажатия.
 const POI_MARKER_PRIORITY: Record<string, number> = {
-  city: 100,
-  mountain: 90,
-  trail: 80,
-  museum: 70,
-  historic: 60,
-  lake: 50,
-  monument: 40,
+  // Keep marker z-indexes below the HUD (20), point card (30), and modal (40).
+  city: 19,
+  mountain: 18,
+  trail: 17,
+  museum: 16,
+  historic: 15,
+  lake: 14,
+  monument: 13,
 };
 const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
   [56.0, 50.5],
