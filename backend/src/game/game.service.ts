@@ -65,7 +65,7 @@ export class GameService {
       const lastDay = user.lastDailyRewardAt ? yekaterinburgDateKey(user.lastDailyRewardAt) : null;
       const claimedToday = lastDay === today;
       const streak = claimedToday ? user.dailyLoginStreak : lastDay === previousDay ? user.dailyLoginStreak + 1 : 1;
-      let reward = null;
+      let reward: { coins?: number; crystals?: number } | null = null;
       if (!claimedToday) {
         const scheduled = DAILY_REWARDS[(streak - 1) % DAILY_REWARDS.length];
         const currency = 'coins' in scheduled ? 'coins' : 'crystals';
@@ -73,7 +73,7 @@ export class GameService {
         await tx.user.update({ where: { id: userId }, data: { dailyLoginStreak: streak, lastDailyRewardAt: now } });
         const wallet = await tx.wallet.update({ where: { userId }, data: currency === 'coins' ? { coinsBalance: { increment: amount } } : { crystalsBalance: { increment: amount } } });
         await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'daily_login', amount, currency, metadata: { streak } } });
-        reward = { [currency]: amount };
+        reward = currency === 'coins' ? { coins: amount } : { crystals: amount };
       }
       return { streak, claimedToday: true, reward, nextAt };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
