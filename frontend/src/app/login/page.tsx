@@ -21,7 +21,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await api.post<AuthResponse>('/auth/login', { nickname, password });
-      setSession(res.user, res.accessToken, res.refreshToken);
+      setSession(res.user, res.accessToken);
       router.push('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Не удалось войти');

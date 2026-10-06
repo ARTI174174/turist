@@ -41,6 +41,7 @@ export class PoiController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   findById(@Param('id') id: string) {
     return this.poiService.findById(id);
   }

@@ -255,18 +255,19 @@ export class GameService {
   async buyUpgrade(userId: string, kind: string, level: number) {
     if ((kind !== 'glasses' && kind !== 'gloves') || !Number.isInteger(level) || level < 1 || level > 4) throw new BadRequestException('Неизвестное улучшение.');
     const field = kind === 'glasses' ? 'glassesLevel' : 'glovesLevel';
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
-    if (level !== user[field] + 1) throw new BadRequestException('Улучшения нужно покупать по порядку.');
     const settings = await getUpgradeSettings(this.prisma, kind);
     const price = settings[level]?.priceCoins;
     if (price == null) throw new BadRequestException('Для этого уровня не задана цена.');
-    const wallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId } });
-    if (wallet.coinsBalance < price) throw new BadRequestException('Недостаточно золота.');
-    await this.prisma.$transaction([
-      this.prisma.wallet.update({ where: { userId }, data: { coinsBalance: { decrement: price } } }),
-      this.prisma.user.update({ where: { id: userId }, data: { [field]: level } }),
-      this.prisma.transaction.create({ data: { walletId: wallet.id, type: 'spend', source: `upgrade_${kind}`, amount: price, currency: 'coins', metadata: { kind, level } } }),
-    ]);
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { glassesLevel: true, glovesLevel: true } });
+      if (level !== user[field] + 1) throw new BadRequestException('Улучшения нужно покупать по порядку.');
+      const charged = await tx.wallet.updateMany({ where: { userId, coinsBalance: { gte: price } }, data: { coinsBalance: { decrement: price } } });
+      if (charged.count !== 1) throw new BadRequestException('Недостаточно золота.');
+      const updated = await tx.user.updateMany({ where: { id: userId, [field]: user[field] }, data: { [field]: level } });
+      if (updated.count !== 1) throw new BadRequestException('Уровень уже изменился. Обновите страницу.');
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      await tx.transaction.create({ data: { walletId: wallet.id, type: 'spend', source: `upgrade_${kind}`, amount: price, currency: 'coins', metadata: { kind, level } } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return this.getUpgrades(userId);
   }
 

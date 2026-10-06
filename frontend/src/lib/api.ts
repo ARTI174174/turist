@@ -25,19 +25,17 @@ function tryRefreshToken(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const { refreshToken } = useAuthStore.getState();
-    if (!refreshToken) return false;
-
     try {
       const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
+        body: JSON.stringify({}),
       });
       if (!res.ok) return false;
 
       const data: AuthResponse = await res.json();
-      useAuthStore.getState().setSession(data.user, data.accessToken, data.refreshToken);
+      useAuthStore.getState().setSession(data.user, data.accessToken);
       return true;
     } catch {
       return false;
@@ -54,6 +52,7 @@ async function request<T>(path: string, options: RequestInit = {}, allowRetry = 
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
@@ -63,7 +62,7 @@ async function request<T>(path: string, options: RequestInit = {}, allowRetry = 
 
   // Access-токен истёк (живёт 15 мин) — пробуем один раз тихо обновить его
   // и повторить запрос, вместо того чтобы UI молча оставался без данных.
-  if (res.status === 401 && allowRetry && !path.startsWith('/auth/')) {
+  if (res.status === 401 && allowRetry && !['/auth/refresh', '/auth/login', '/auth/register', '/auth/register-challenge'].includes(path.split('?')[0])) {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
       return request<T>(path, options, false);

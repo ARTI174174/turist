@@ -40,4 +40,9 @@ export class RegisterDto {
   @Min(0)
   @Max(100)
   challengeAnswer: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(100_000_000)
+  proofCounter: number;
 }

@@ -89,7 +89,16 @@ export class PoiService {
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
   }
 
+  private async assertPoiReadable(id: string) {
+    const poi = await this.prisma.poi.findUnique({ where: { id }, select: { id: true, status: true, visibility: true, secretFoundAt: true } });
+    if (!poi || poi.status !== 'active' || (poi.visibility === 'secret' && !poi.secretFoundAt)) {
+      throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    }
+    return poi;
+  }
+
   async findById(id: string) {
+    await this.assertPoiReadable(id);
     const poi = await this.prisma.poi.findUnique({
       where: { id },
       include: { category: true, secretFinder: { select: { nickname: true } }, flag: { include: { user: { select: { nickname: true } } } }, media: { where: { moderationStatus: 'approved' } } },
@@ -105,8 +114,7 @@ export class PoiService {
   }
 
   async listComments(poiId: string) {
-    const poi = await this.prisma.poi.findUnique({ where: { id: poiId }, select: { id: true } });
-    if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    await this.assertPoiReadable(poiId);
     const rows = await this.prisma.poiComment.findMany({
       where: { poiId },
       orderBy: { createdAt: 'desc' },
@@ -133,8 +141,7 @@ export class PoiService {
     if (!normalizedText) {
       throw new BadRequestException({ code: 'COMMENT_EMPTY', message: 'Напишите текст комментария' });
     }
-    const poi = await this.prisma.poi.findUnique({ where: { id: poiId }, select: { id: true } });
-    if (!poi) throw new NotFoundException({ code: 'POI_NOT_FOUND', message: 'Точка не найдена' });
+    await this.assertPoiReadable(poiId);
     return this.prisma.poiComment.create({
       data: { poiId, userId, text: normalizedText },
       include: { user: { include: { character: true, progress: true } } },

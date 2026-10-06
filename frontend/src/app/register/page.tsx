@@ -19,13 +19,13 @@ export default function RegisterPage() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [campThemeId, setCampThemeId] = useState<string | null>(null);
-  const [challenge, setChallenge] = useState<{ challengeId: string; question: string } | null>(null);
+  const [challenge, setChallenge] = useState<{ challengeId: string; nonce: string; difficultyBits: number; question: string } | null>(null);
   const [challengeAnswer, setChallengeAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const loadChallenge = useCallback(async () => {
-    try { setChallenge(await api.get<{ challengeId: string; question: string }>('/auth/register-challenge')); setChallengeAnswer(''); }
+    try { setChallenge(await api.get<{ challengeId: string; nonce: string; difficultyBits: number; question: string }>('/auth/register-challenge')); setChallengeAnswer(''); }
     catch { setChallenge(null); }
   }, []);
   useEffect(() => { void loadChallenge(); }, [loadChallenge]);
@@ -35,6 +35,8 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
+      if (!challenge) throw new Error('Проверка не загружена. Обновите страницу и попробуйте снова.');
+      const proofCounter = await solveRegistrationProof(challenge.challengeId, challenge.nonce, Number(challengeAnswer), challenge.difficultyBits);
       const res = await api.post<AuthResponse>('/auth/register', {
         nickname,
         password,
@@ -43,8 +45,9 @@ export default function RegisterPage() {
         campThemeId,
         challengeId: challenge?.challengeId,
         challengeAnswer: Number(challengeAnswer),
+        proofCounter,
       });
-      setSession(res.user, res.accessToken, res.refreshToken);
+      setSession(res.user, res.accessToken);
       router.push('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Не удалось зарегистрироваться');
@@ -134,7 +137,7 @@ export default function RegisterPage() {
                 disabled={loading || !challenge}
                 className="adventure-primary flex-1 rounded-full py-3 font-display disabled:opacity-50"
               >
-                {loading ? 'Создаём…' : !challenge ? 'Загружаем проверку…' : 'Начать путешествие'}
+                {loading ? 'Проверяем и создаём…' : !challenge ? 'Загружаем проверку…' : 'Начать путешествие'}
               </button>
             </div>
           </form>
@@ -149,6 +152,23 @@ export default function RegisterPage() {
       </div>
     </main>
   );
+}
+
+async function solveRegistrationProof(challengeId: string, nonce: string, answer: number, difficultyBits: number) {
+  if (!globalThis.crypto?.subtle) throw new Error('Браузер не поддерживает проверку безопасности. Обновите браузер.');
+  const encoder = new TextEncoder();
+  const targetPrefixBytes = Math.floor(difficultyBits / 8);
+  const remainingBits = difficultyBits % 8;
+  for (let counter = 0; counter <= 100_000_000; counter++) {
+    const input = encoder.encode(`${challengeId}:${nonce}:${answer}:${counter}`);
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
+    let valid = true;
+    for (let i = 0; i < targetPrefixBytes; i++) if (digest[i] !== 0) { valid = false; break; }
+    if (valid && remainingBits > 0 && (digest[targetPrefixBytes] >> (8 - remainingBits)) !== 0) valid = false;
+    if (valid) return counter;
+    if (counter % 256 === 0) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  throw new Error('Не удалось пройти проверку. Обновите пример и попробуйте ещё раз.');
 }
 
 function Field({

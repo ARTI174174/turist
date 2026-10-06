@@ -8,6 +8,7 @@ import { GeoPosition } from '@/hooks/useGeolocation';
 import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AvatarImage } from '@/components/character/AvatarImage';
+import { announceAchievement } from '@/lib/achievement-notice';
 
 interface PoiComment {
   id: string;
@@ -122,6 +123,12 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         setFlow('success');
         const milestoneXp = (res.newMilestones ?? []).reduce((sum, m) => sum + m.reward, 0);
         const milestoneCrystals = (res.newMilestones ?? []).reduce((sum, m) => sum + m.crystalReward, 0);
+        const milestoneNames = (res.newMilestones ?? []).map((milestone) => `веха «${milestone.count} мест»`);
+        announceAchievement({
+          title: milestoneNames.length ? 'Новая точка и достижение!' : 'Точка исследована!',
+          description: milestoneNames.length ? `${poi.title}. Получено достижение: ${milestoneNames.join(', ')}.` : `Ты открыл место «${poi.title}».`,
+          reward: `+${res.xpAwarded ?? 0} опыта · +${res.coinsAwarded ?? 0} золота${(res.crystalsAwarded ?? 0) + milestoneCrystals > 0 ? ` · +${(res.crystalsAwarded ?? 0) + milestoneCrystals} 💎` : ''}`,
+        });
         if (user) {
           updateUser({
             progress: { xp: user.progress.xp + (res.xpAwarded ?? 0) + milestoneXp, rankCode: user.progress.rankCode },

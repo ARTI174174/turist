@@ -54,35 +54,26 @@ export class EconomyService {
       throw new NotFoundException({ code: 'ITEM_NOT_FOUND', message: 'Предмет не найден' });
     }
 
-    const permanentEquipment = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
-    if (permanentEquipment.has(item.name)) {
-      const alreadyOwned = await this.prisma.inventoryItem.findFirst({ where: { userId, shopItemId }, select: { id: true } });
-      if (alreadyOwned) throw new BadRequestException('Этот предмет уже есть в вашем лагере или снаряжении.');
-    }
-
-    const wallet = await this.getWallet(userId);
-
     // Способность "Опытный турист" и вся игровая прогрессия покупается ТОЛЬКО за монеты (FR-ECO-04)
     const currency: 'coins' | 'crystals' = item.priceCoins != null ? 'coins' : 'crystals';
     const price = currency === 'coins' ? item.priceCoins! : item.priceCrystals!;
-    const balance = currency === 'coins' ? wallet.coinsBalance : wallet.crystalsBalance;
+    if (!Number.isSafeInteger(price) || price < 0) throw new BadRequestException('У товара некорректно задана цена.');
+    if (currency === 'crystals' && item.priceCrystals == null) throw new BadRequestException('У товара не задана цена.');
 
-    if (balance < price) {
-      throw new BadRequestException({
-        code: 'INSUFFICIENT_FUNDS',
-        message: 'Недостаточно средств для покупки',
+    const permanentEquipment = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
+    await this.prisma.$transaction(async (tx) => {
+      if (permanentEquipment.has(item.name)) {
+        const alreadyOwned = await tx.inventoryItem.findFirst({ where: { userId, shopItemId }, select: { id: true } });
+        if (alreadyOwned) throw new BadRequestException('Этот предмет уже есть в вашем лагере или снаряжении.');
+      }
+
+      const charged = await tx.wallet.updateMany({
+        where: { userId, ...(currency === 'coins' ? { coinsBalance: { gte: price } } : { crystalsBalance: { gte: price } }) },
+        data: currency === 'coins' ? { coinsBalance: { decrement: price } } : { crystalsBalance: { decrement: price } },
       });
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.wallet.update({
-        where: { id: wallet.id },
-        data:
-          currency === 'coins'
-            ? { coinsBalance: { decrement: price } }
-            : { crystalsBalance: { decrement: price } },
-      }),
-      this.prisma.transaction.create({
+      if (charged.count !== 1) throw new BadRequestException({ code: 'INSUFFICIENT_FUNDS', message: 'Недостаточно средств для покупки' });
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      await tx.transaction.create({
         data: {
           walletId: wallet.id,
           type: 'spend',
@@ -91,11 +82,11 @@ export class EconomyService {
           currency,
           metadata: { shopItemId },
         },
-      }),
-      this.prisma.inventoryItem.create({
+      });
+      await tx.inventoryItem.create({
         data: { userId, shopItemId },
-      }),
-    ]);
+      });
+    }, { isolationLevel: 'Serializable' });
 
     return { success: true, itemId: item.id };
   }

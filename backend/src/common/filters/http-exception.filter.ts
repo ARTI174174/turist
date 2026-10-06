@@ -20,15 +20,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const body =
-      exception instanceof HttpException ? exception.getResponse() : null;
+    const body = exception instanceof HttpException ? exception.getResponse() : null;
+    const serverError = status >= HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
-      (body && typeof body === 'object' && (body as any).message) ||
-      (exception instanceof Error ? exception.message : 'Внутренняя ошибка сервера');
+    const message = serverError
+      ? 'Внутренняя ошибка сервера'
+      : (body && typeof body === 'object' && (body as any).message) || 'Ошибка запроса';
 
     const code =
-      (body && typeof body === 'object' && (body as any).code) ||
+      (serverError ? 'INTERNAL_ERROR' : body && typeof body === 'object' && (body as any).code) ||
       HttpStatus[status] ||
       'INTERNAL_ERROR';
 
@@ -36,7 +36,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error: {
         code,
         message,
-        details: (body && typeof body === 'object' && (body as any).details) || {},
+        details: serverError ? {} : (body && typeof body === 'object' && (body as any).details) || {},
       },
     });
   }

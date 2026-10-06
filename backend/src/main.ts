@@ -5,12 +5,14 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const isProduction = process.env.NODE_ENV === 'production';
+  // Treat every environment other than an explicitly local/test run as production.
+  // An unset NODE_ENV must never silently enable permissive CORS or HTTP cookies.
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+  const isProduction = !isDevelopment;
   const jwtSecret = process.env.JWT_ACCESS_SECRET;
 
-  // Никогда не запускаем production с известным fallback-секретом.
-  if (isProduction && (!jwtSecret || jwtSecret.length < 32)) {
-    throw new Error('JWT_ACCESS_SECRET must be set and contain at least 32 characters in production');
+  if (!isDevelopment && (!jwtSecret || jwtSecret.length < 32)) {
+    throw new Error('JWT_ACCESS_SECRET must be set and contain at least 32 characters outside development/test');
   }
 
   const app = await NestFactory.create(AppModule, { cors: false });
@@ -65,8 +67,10 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (!isProduction) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

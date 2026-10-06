@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import maplibregl, { Map as MapLibreMap, Marker } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Poi, Crystal } from '@/types';
 import { GeoPosition } from '@/hooks/useGeolocation';
@@ -96,7 +96,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = new maplibregl.Map({
+    const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE,
       center: DEFAULT_CENTER,
@@ -135,8 +135,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         try {
           // CARTO changes layer paint definitions between style versions.
           // Skip missing/unsupported properties instead of aborting map load.
-          if (map.getLayer(layerId) && map.getPaintProperty(layerId, prop) !== undefined) {
-            map.setPaintProperty(layerId, prop, value);
+          if (map.getLayer(layerId) && map.getPaintProperty(layerId, prop as any) !== undefined) {
+            map.setPaintProperty(layerId, prop as any, value);
           }
         } catch {
           // A style layer may disappear while CARTO refreshes the style.
@@ -273,7 +273,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         badge.appendChild(svg); el.appendChild(badge);
       }
 
-      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      const marker = new Marker({ element: el, anchor: 'bottom' })
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
@@ -312,7 +312,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       el.style.filter = 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))';
       el.style.zIndex = '11';
 
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      const marker = new Marker({ element: el, anchor: 'center' })
         .setLngLat([crystal.lng, crystal.lat])
         .addTo(map);
 
@@ -373,7 +373,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       el.appendChild(inner);
       userAvatarContainerRef.current = avatarContainer;
       userHeadingLayerRef.current = headingLayer;
-      userMarkerRef.current = new maplibregl.Marker({
+      userMarkerRef.current = new Marker({
         element: el,
         rotationAlignment: 'viewport',
       })

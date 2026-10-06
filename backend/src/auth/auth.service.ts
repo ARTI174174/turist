@@ -5,9 +5,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -25,7 +25,7 @@ function yekaterinburgDateKey(date: Date): string {
 
 @Injectable()
 export class AuthService {
-  private readonly registerChallenges = new Map<string, { answer: number; expiresAt: number }>();
+  private readonly registerChallenges = new Map<string, { answer: number; nonce: string; expiresAt: number }>();
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -35,27 +35,33 @@ export class AuthService {
     const a = 2 + Math.floor(Math.random() * 18);
     const b = 2 + Math.floor(Math.random() * 18);
     const challengeId = randomUUID();
-    this.registerChallenges.set(challengeId, { answer: a + b, expiresAt: Date.now() + 5 * 60_000 });
+    const nonce = randomUUID();
+    this.registerChallenges.set(challengeId, { answer: a + b, nonce, expiresAt: Date.now() + 5 * 60_000 });
     for (const [id, challenge] of this.registerChallenges) if (challenge.expiresAt < Date.now()) this.registerChallenges.delete(id);
-    return { challengeId, question: `${a} + ${b} = ?` };
+    return { challengeId, nonce, difficultyBits: 16, question: `${a} + ${b} = ?` };
   }
 
   private async issueTokens(user: { id: string; nickname: string; role: string }) {
     const payload = { sub: user.id, nickname: user.nickname, role: user.role };
-    const secret = process.env.JWT_ACCESS_SECRET ?? 'dev_secret_change_me';
+    const secret = process.env.JWT_ACCESS_SECRET ?? (process.env.NODE_ENV === 'test' ? 'test-only-secret-not-for-deployment-000000000000' : undefined);
+    if (!secret || secret.length < 32) throw new Error('JWT_ACCESS_SECRET must be configured with at least 32 characters');
 
     const accessToken = this.jwtService.sign(payload, {
       secret,
-      expiresIn: process.env.JWT_ACCESS_TTL ?? '15m',
+      expiresIn: (process.env.JWT_ACCESS_TTL ?? '15m') as JwtSignOptions['expiresIn'],
     });
 
-    const rawRefreshToken = randomUUID() + '.' + randomUUID();
+    // Put the database row ID in the opaque token so refresh resolves exactly
+    // one session instead of running Argon2 against every active session.
+    const refreshTokenId = randomUUID();
+    const rawRefreshToken = refreshTokenId + '.' + randomUUID();
     const refreshTokenHash = await argon2.hash(rawRefreshToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
     await this.prisma.refreshToken.create({
       data: {
+        id: refreshTokenId,
         userId: user.id,
         tokenHash: refreshTokenHash,
         expiresAt,
@@ -70,6 +76,14 @@ export class AuthService {
     this.registerChallenges.delete(dto.challengeId);
     if (!challenge || challenge.expiresAt < Date.now() || challenge.answer !== dto.challengeAnswer) {
       throw new BadRequestException('Решите пример для проверки и попробуйте ещё раз.');
+    }
+    const proof = createHash('sha256')
+      .update(`${dto.challengeId}:${challenge.nonce}:${challenge.answer}:${dto.proofCounter}`)
+      .digest();
+    // Require 16 leading zero bits (about 65,536 hashes on average). The
+    // one-use server challenge prevents replaying a solved proof.
+    if (proof[0] !== 0 || proof[1] !== 0) {
+      throw new BadRequestException('Проверка устройства не пройдена. Обновите пример и попробуйте ещё раз.');
     }
     const nicknameLower = dto.nickname.toLowerCase();
     const existing = await this.prisma.user.findUnique({
@@ -168,41 +182,38 @@ export class AuthService {
       });
     }
 
-    const candidates = await this.prisma.refreshToken.findMany({
-      where: { revoked: false, expiresAt: { gt: new Date() } },
-      include: { user: { include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true } } },
-    });
-
-    for (const candidate of candidates) {
-      const matches = await argon2.verify(candidate.tokenHash, rawRefreshToken);
-      if (!matches) continue;
-
-      // Атомарная ротация: только один параллельный запрос может "забрать"
-      // конкретный refresh-token. Это закрывает race condition при двойном refresh.
-      const rotated = await this.prisma.refreshToken.updateMany({
-        where: {
-          id: candidate.id,
-          revoked: false,
-          expiresAt: { gt: new Date() },
-        },
-        data: { revoked: true },
-      });
-
-      if (rotated.count !== 1) {
-        throw new UnauthorizedException({
-          code: 'INVALID_REFRESH_TOKEN',
-          message: 'Сессия недействительна, требуется повторный вход',
-        });
-      }
-
-      const tokens = await this.issueTokens(candidate.user);
-      return { user: this.toPublicUser(candidate.user), ...tokens };
+    const [tokenId, secret] = rawRefreshToken.split('.');
+    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    if (!secret || !isUuid(tokenId) || !isUuid(secret)) {
+      throw new UnauthorizedException({ code: 'INVALID_REFRESH_TOKEN', message: 'Сессия недействительна, требуется повторный вход' });
     }
 
-    throw new UnauthorizedException({
-      code: 'INVALID_REFRESH_TOKEN',
-      message: 'Сессия недействительна, требуется повторный вход',
+    const candidate = await this.prisma.refreshToken.findUnique({
+      where: { id: tokenId },
+      include: { user: { select: { id: true, nickname: true, role: true, status: true } } },
     });
+    if (!candidate || candidate.revoked || candidate.expiresAt <= new Date() || candidate.user.status !== 'active' || !(await argon2.verify(candidate.tokenHash, rawRefreshToken))) {
+      throw new UnauthorizedException({ code: 'INVALID_REFRESH_TOKEN', message: 'Сессия недействительна, требуется повторный вход' });
+    }
+
+    // Atomic rotation: only one concurrent request can consume this token.
+    const rotated = await this.prisma.refreshToken.updateMany({
+      where: { id: candidate.id, revoked: false, expiresAt: { gt: new Date() } },
+      data: { revoked: true },
+    });
+    if (rotated.count !== 1) {
+      throw new UnauthorizedException({ code: 'INVALID_REFRESH_TOKEN', message: 'Сессия недействительна, требуется повторный вход' });
+    }
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: candidate.userId },
+      include: { character: { include: { ownedAvatars: true } }, wallet: true, progress: true },
+    });
+    if (user.status !== 'active') {
+      throw new UnauthorizedException({ code: 'INVALID_REFRESH_TOKEN', message: 'Сессия недействительна, требуется повторный вход' });
+    }
+    const tokens = await this.issueTokens(user);
+    return { user: this.toPublicUser(user), ...tokens };
   }
 
   async logout(userId: string) {

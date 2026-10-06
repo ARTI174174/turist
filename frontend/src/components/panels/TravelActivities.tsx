@@ -9,6 +9,7 @@ import { Poi } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Modal } from '@/components/ui/Modal';
+import { announceAchievement } from '@/lib/achievement-notice';
 
 interface Expedition { active: boolean; title: string; message?: string; stageIndex?: number; points?: (Poi & { completed: boolean; locked?: boolean })[]; readyToClaim?: boolean; claimed?: boolean; medal?: string }
 interface Roulette { available: boolean; remaining: number; used: number; challenge: null | { id: string; spinIndex: number; status: string; expiresAt: string; poi: Poi | null; rewardCoins: number; rewardCrystals: number } }
@@ -31,6 +32,7 @@ export function TravelActivities() {
       const result = await api.post<{ coins: number; crystals: number; medal: string }>('/game/expedition/claim', {});
       if (user) updateUser({ wallet: { ...user.wallet, coinsBalance: user.wallet.coinsBalance + result.coins, crystalsBalance: user.wallet.crystalsBalance + result.crystals } });
       setMessage(`Получена редкая медаль «${result.medal}» и награда!`);
+      announceAchievement({ title: 'Великое путешествие завершено!', description: `Получена редкая медаль «${result.medal}».`, reward: `+${result.coins.toLocaleString('ru-RU')} золота · +${result.crystals} 💎` });
       await queryClient.invalidateQueries({ queryKey: ['game', 'expedition'] });
       await queryClient.invalidateQueries({ queryKey: ['game', 'leaderboard'] });
     } catch (error) { setMessage(error instanceof ApiError ? error.message : 'Не удалось получить награду'); }
