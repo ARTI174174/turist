@@ -22,6 +22,8 @@ export function AchievementNotice() {
   if (!notice) return null;
 
   return (
+    <>
+    <div aria-hidden="true" className="fixed inset-0 z-[80] bg-black/35 backdrop-blur-[1px]" />
     <div className="pointer-events-none fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-[90] flex justify-center sm:bottom-6">
       <section key={notice.id} role="status" aria-live="polite" className="pointer-events-auto w-full max-w-sm rounded-2xl border border-brass/70 bg-panel/95 p-4 text-parchment shadow-2xl backdrop-blur-md">
         <div className="flex items-start gap-3">
@@ -37,5 +39,6 @@ export function AchievementNotice() {
         <button type="button" onClick={() => setNotice(null)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-brass/40 bg-moss/25 py-2 text-xs font-semibold text-parchment hover:bg-moss/40"><Check size={15} /> Отлично!</button>
       </section>
     </div>
+    </>
   );
 }

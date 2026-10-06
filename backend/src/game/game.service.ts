@@ -124,12 +124,31 @@ export class GameService {
       }
     }
     const ids = event.poiIds as string[];
-    const [points, progress, claim] = await Promise.all([
+    const [points, stageIndex, claim] = await Promise.all([
       this.prisma.poi.findMany({ where: { id: { in: ids } }, include: { category: true } }),
-      this.prisma.expeditionProgress.findUnique({ where: { eventId_userId: { eventId: event.id, userId } }, select: { stageIndex: true } }),
+      this.prisma.$transaction(async (tx) => {
+        const progress = await tx.expeditionProgress.upsert({
+          where: { eventId_userId: { eventId: event.id, userId } },
+          update: {},
+          create: { eventId: event.id, userId, stageIndex: 0 },
+          select: { stageIndex: true },
+        });
+        const priorVisits = await tx.visit.findMany({ where: { userId, poiId: { in: ids } }, select: { poiId: true } });
+        const visitedPoiIds = new Set(priorVisits.map((visit) => visit.poiId));
+        let nextStage = progress.stageIndex;
+        while (nextStage < ids.length && visitedPoiIds.has(ids[nextStage])) nextStage++;
+        if (nextStage === progress.stageIndex) return progress.stageIndex;
+
+        const advanced = await tx.expeditionProgress.updateMany({
+          where: { eventId: event.id, userId, stageIndex: progress.stageIndex },
+          data: { stageIndex: nextStage },
+        });
+        if (advanced.count === 1) return nextStage;
+        const latest = await tx.expeditionProgress.findUniqueOrThrow({ where: { eventId_userId: { eventId: event.id, userId } }, select: { stageIndex: true } });
+        return latest.stageIndex;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }),
       this.prisma.expeditionClaim.findUnique({ where: { eventId_userId: { eventId: event.id, userId } } }),
     ]);
-    const stageIndex = progress?.stageIndex ?? 0;
     return { active: now >= event.startsAt && now < event.endsAt, title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, stageIndex, points: ids.map((id, index) => ({ ...points.find((p) => p.id === id), completed: index < stageIndex, locked: index > stageIndex })).filter((p) => p.id), readyToClaim: ids.length > 0 && stageIndex >= ids.length, claimed: !!claim, medal: claim?.medalName ?? null };
   }
 
