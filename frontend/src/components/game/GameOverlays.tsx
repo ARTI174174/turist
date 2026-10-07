@@ -82,6 +82,7 @@ export function GameOverlays() {
     try {
       await api.post('/game/welcome/complete', {});
       await queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
+      await queryClient.invalidateQueries({ queryKey: ['game', 'daily'] });
       await queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
       router.push('/map');
     } catch {
@@ -93,8 +94,8 @@ export function GameOverlays() {
     const steps = [
       { icon: <Compass size={20} />, title: 'Добро пожаловать в лагерь', text: 'Сейчас ты в своём лагере — здесь спокойно и безопасно. Внизу находится главное меню: профиль, лагерь, карта «В путь», дневник и друзья.' },
       { icon: <Sparkles size={20} />, title: 'Золото, бриллианты и уровень', text: 'Золото и бриллианты нужны для покупок в магазине. За открытия ты получаешь опыт и повышаешь уровень. Чем выше уровень, тем выше место в списке лучших игроков.' },
-      { icon: <BookOpen size={20} />, title: 'Дневник и друзья', text: 'В дневнике смотри посещённые места, экспедиции и маршруты участников. В друзьях можно добавлять путешественников, смотреть их достижения и посещать места вместе.' },
       { icon: <MapPin size={20} />, title: 'Карта и магазин', text: 'На карте «В путь» находятся рейтинг игроков, задания и магазин. В магазине можно купить улучшения, которые помогают в путешествии.' },
+      { icon: <BookOpen size={20} />, title: 'Дневник и друзья', text: 'В дневнике смотри посещённые места, экспедиции и маршруты участников. В друзьях можно добавлять путешественников, смотреть их достижения и посещать места вместе.' },
     ];
     const step = steps[introStep];
     return <Modal title="Добро пожаловать в ТУРИСТ" onClose={finishIntro}>

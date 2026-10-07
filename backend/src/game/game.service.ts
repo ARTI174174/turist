@@ -68,7 +68,11 @@ export class GameService {
     const previousDay = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) - 1)).toISOString().slice(0, 10);
     const nextAt = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) + 1) - 5 * 60 * 60 * 1000);
     const result = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true } });
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true, privacySettings: true } });
+      const settings = user.privacySettings && typeof user.privacySettings === 'object' && !Array.isArray(user.privacySettings) ? user.privacySettings as Record<string, unknown> : {};
+      if (settings.tutorialRequired === true && settings.tutorialPointFound !== true) {
+        return { streak: Math.max(1, user.dailyLoginStreak), claimedToday: false, reward: null, nextAt: nextAt.toISOString(), locked: true };
+      }
       const lastDay = user.lastDailyRewardAt ? yekaterinburgDateKey(user.lastDailyRewardAt) : null;
       const claimedToday = lastDay === today;
       const streak = claimedToday ? user.dailyLoginStreak : lastDay === previousDay ? user.dailyLoginStreak + 1 : 1;
@@ -82,10 +86,10 @@ export class GameService {
         await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'daily_login', amount, currency, metadata: { streak } } });
         reward = currency === 'coins' ? { coins: amount } : { crystals: amount };
       }
-      return { streak, claimedToday: true, reward, nextAt };
+      return { streak, claimedToday: true, reward, nextAt, locked: false };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     const cycleDay = ((result.streak - 1) % DAILY_REWARDS.length) + 1;
-    return { ...result, cycleDay, rewards: DAILY_REWARDS.map((reward, i) => ({ day: i + 1, ...reward, completed: i + 1 < cycleDay || i + 1 === cycleDay })) };
+    return { ...result, cycleDay, rewards: DAILY_REWARDS.map((reward, i) => ({ day: i + 1, ...reward, completed: !result.locked && (i + 1 < cycleDay || i + 1 === cycleDay) })) };
   }
 
   async leaderboard() {

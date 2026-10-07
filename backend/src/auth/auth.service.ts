@@ -159,11 +159,15 @@ export class AuthService {
     ];
     const now = new Date();
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true } });
+      const current = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { dailyLoginStreak: true, lastDailyRewardAt: true, privacySettings: true } });
       const today = yekaterinburgDateKey(now);
       const previousDay = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) - 1)).toISOString().slice(0, 10);
       const lastDay = current.lastDailyRewardAt ? yekaterinburgDateKey(current.lastDailyRewardAt) : null;
       const nextLocalMidnightUtc = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) + 1) - 5 * 60 * 60 * 1000);
+      const settings = current.privacySettings && typeof current.privacySettings === 'object' && !Array.isArray(current.privacySettings) ? current.privacySettings as Record<string, unknown> : {};
+      if (settings.tutorialRequired === true && settings.tutorialPointFound !== true) {
+        return { claimed: false, streak: current.dailyLoginStreak, nextAt: nextLocalMidnightUtc.toISOString(), locked: true };
+      }
       if (lastDay === today) return { claimed: false, streak: current.dailyLoginStreak, nextAt: nextLocalMidnightUtc.toISOString() };
       const streak = lastDay === previousDay ? current.dailyLoginStreak + 1 : 1;
       const reward = rewards[(streak - 1) % 10];
