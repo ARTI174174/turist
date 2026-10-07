@@ -264,6 +264,17 @@ body {
 .bg-adventure .rounded-2xl.bg-white\/40,
 .bg-adventure .rounded-xl.bg-white\/50 { border: 1px solid rgba(191, 181, 127, .2); }
 
+/* Прячем системную полосу, сохраняя прокрутку колёсиком, трекпадом и жестом. */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Уважение к reduced-motion (SRS п.7.5, доступность) */
 @media (prefers-reduced-motion: reduce) {
   *,

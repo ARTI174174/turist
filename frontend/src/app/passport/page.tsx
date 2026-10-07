@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TopHud } from '@/components/hud/TopHud';
@@ -56,8 +56,28 @@ export default function PassportPage() {
   const [hydrated, setHydrated] = useState(false);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
   const [placeFilter, setPlaceFilter] = useState<PlaceFilter>('all');
+  const filterScrollRef = useRef<HTMLDivElement>(null);
+  const [showFilterLeftFade, setShowFilterLeftFade] = useState(false);
+  const [showFilterRightFade, setShowFilterRightFade] = useState(false);
 
   useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    const element = filterScrollRef.current;
+    if (!element) return;
+
+    const updateFades = () => {
+      setShowFilterLeftFade(element.scrollLeft > 2);
+      setShowFilterRightFade(element.scrollLeft + element.clientWidth < element.scrollWidth - 2);
+    };
+    updateFades();
+    element.addEventListener('scroll', updateFades, { passive: true });
+    const observer = new ResizeObserver(updateFades);
+    observer.observe(element);
+    return () => {
+      element.removeEventListener('scroll', updateFades);
+      observer.disconnect();
+    };
+  }, [visits.length]);
   useEffect(() => {
     if (hydrated && !user) router.replace('/login');
   }, [hydrated, user, router]);
@@ -97,7 +117,7 @@ export default function PassportPage() {
       <TopHud />
 
       <div
-        className="bg-adventure h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
+        className="bg-adventure scrollbar-hidden h-full overflow-y-auto px-4 pb-[calc(10rem+env(safe-area-inset-bottom,0px))]"
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 118px)' }}
       >
         <section className="adventure-card mb-5 overflow-hidden rounded-[26px] p-4" aria-labelledby="passport-heading">
@@ -122,8 +142,12 @@ export default function PassportPage() {
 
         <section aria-labelledby="visited-heading" className="mb-5">
           <div className="mb-3 flex items-end justify-between gap-3"><div><h2 id="visited-heading" className="font-display text-lg text-parchment">Мои открытия</h2><p className="mt-0.5 text-xs text-parchment/70">Каждое место — часть твоего пути</p></div><span className="whitespace-nowrap text-xs text-amber-light">{visits.length} {visitWord(visits.length)}</span></div>
-          <div role="group" aria-label="Фильтр посещённых мест" className="mb-3 flex gap-2 overflow-x-auto pb-1">
-            {filters.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-pressed={placeFilter === id} onClick={() => setPlaceFilter(id)} className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-light ${placeFilter === id ? 'border-brass bg-moss text-parchment shadow-md' : 'border-brass/30 bg-panel/70 text-parchment/80'}`}><Icon size={15} aria-hidden="true" />{label}<span className="text-[10px] opacity-80">{visitCounts[id]}</span></button>)}
+          <div className="relative mb-3">
+            <div ref={filterScrollRef} role="group" aria-label="Фильтр посещённых мест" className="scrollbar-hidden flex snap-x gap-2 overflow-x-auto pb-1">
+              {filters.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-pressed={placeFilter === id} onClick={() => setPlaceFilter(id)} className={`flex min-h-11 shrink-0 snap-start items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-light ${placeFilter === id ? 'border-brass bg-moss text-parchment shadow-md' : 'border-brass/30 bg-panel/70 text-parchment/80'}`}><Icon size={15} aria-hidden="true" />{label}<span className="text-[10px] opacity-80">{visitCounts[id]}</span></button>)}
+            </div>
+            {showFilterLeftFade && <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 z-10 w-5 bg-gradient-to-r from-[#11150f] to-transparent" />}
+            {showFilterRightFade && <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 z-10 w-7 bg-gradient-to-l from-[#11150f] to-transparent" />}
           </div>
           {visitsError ? <div role="alert" className="adventure-card rounded-2xl p-4 text-center"><p className="text-sm text-parchment">Не удалось загрузить паспорт.</p><button onClick={() => void refetchVisits()} className="adventure-secondary mt-3 min-h-11 rounded-full px-4 text-sm">Попробовать ещё раз</button></div> : visitsLoading ? <div role="status" className="adventure-card rounded-2xl p-4 text-sm text-parchment/75">Загружаем твои открытия…</div> : <div className="space-y-3">
             {filteredVisits.map((v) => <VisitCard key={v.id} visit={v} onOpen={() => setSelectedPoi(v.poi)} />)}

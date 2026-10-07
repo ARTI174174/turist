@@ -29,7 +29,7 @@ export function Modal({
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto p-4">{children}</div>
+        <div className="scrollbar-hidden overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );
