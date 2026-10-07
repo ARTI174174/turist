@@ -222,21 +222,28 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const renderPoiMarkers = () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
+    const markerViews: { button: HTMLButtonElement; art: HTMLDivElement; dot: HTMLDivElement; fixedSize: boolean; label?: Marker }[] = [];
+    const updateMarkerZoom = () => {
       const zoom = map.getZoom();
-      const importantCategories = new Set(['mountain', 'trail', 'lake', 'park', 'museum', 'historic']);
+      for (const view of markerViews) {
+        const phase = view.fixedSize ? 1 : Math.max(0, Math.min(1, (zoom - 8.5) / 4));
+        const scale = view.fixedSize ? 1 : 0.12 + phase * 0.88;
+        const dotSize = 4 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
+        view.button.style.width = `${Math.max(dotSize, 46 * scale)}px`;
+        view.button.style.height = `${Math.max(dotSize, 56 * scale)}px`;
+        view.art.style.transform = `translateX(-50%) scale(${scale})`;
+        view.art.style.opacity = String(phase);
+        view.dot.style.width = `${dotSize}px`;
+        view.dot.style.height = `${dotSize}px`;
+        view.dot.style.opacity = String(1 - phase);
+        if (view.label) view.label.setOffset([0, -Math.round(56 * scale + 3)]);
+      }
+    };
 
-      for (const poi of pois) {
+    for (const poi of pois) {
         if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
         const fixedSize = poi.markerFixedSize === 1;
         const settlement = ['city', 'township', 'village'].includes(poi.category?.code ?? '');
-        const zoomToShow = fixedSize ? 7 : importantCategories.has(poi.category?.code ?? '') ? 9 : 11.5;
-        if (zoom < zoomToShow) continue;
-        // Scale the actual marker element and image together. At distant zooms
-        // investigated locations become small; they never exceed 46 × 56 px.
-        const scale = fixedSize ? 1 : Math.max(0.18, Math.min(1, (zoom - 7) / 7));
 
         const el = document.createElement('button');
         el.type = 'button';
@@ -244,8 +251,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         el.title = poi.title;
         Object.assign(el.style, {
           display: 'block',
-          width: `${46 * scale}px`,
-          height: `${56 * scale}px`,
+          width: '6px',
+          height: '6px',
           padding: '0',
           border: '0',
           borderRadius: '0',
@@ -264,8 +271,26 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           position: 'absolute',
           left: '50%',
           bottom: '0',
-          transform: `translateX(-50%) scale(${scale})`,
+          transform: 'translateX(-50%) scale(.12)',
           transformOrigin: 'bottom center',
+          opacity: '0',
+          transition: 'transform 450ms cubic-bezier(.2,.75,.25,1), opacity 350ms ease',
+        });
+        const dot = document.createElement('span');
+        Object.assign(dot.style, {
+          position: 'absolute',
+          left: '50%',
+          bottom: '0',
+          width: '4px',
+          height: '4px',
+          transform: 'translateX(-50%)',
+          borderRadius: '50%',
+          background: '#e5ad43',
+          border: '1px solid rgba(255,248,225,.95)',
+          boxShadow: '0 1px 4px rgba(20,25,17,.8)',
+          opacity: '1',
+          transition: 'width 300ms ease, height 300ms ease, opacity 350ms ease',
+          pointerEvents: 'none',
         });
         const categoryCode = poi.category?.code;
         const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
@@ -290,7 +315,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         if (poi.flag) {
           const badge = document.createElement('div');
           badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
-          Object.assign(badge.style, { position: 'absolute', top: `${-7 * scale}px`, right: `${-5 * scale}px`, width: `${25 * scale}px`, height: `${27 * scale}px`, borderRadius: `${7 * scale}px`, background: 'rgba(10,15,10,.88)', border: `${scale}px solid rgba(219,190,118,.8)`, boxShadow: '0 2px 5px #0008' });
+          Object.assign(badge.style, { position: 'absolute', top: '-7px', right: '-5px', width: '25px', height: '27px', borderRadius: '7px', background: 'rgba(10,15,10,.88)', border: '1px solid rgba(219,190,118,.8)', boxShadow: '0 2px 5px #0008' });
           const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
           svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
           const pole = document.createElementNS(svg.namespaceURI, 'line');
@@ -309,6 +334,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           badge.appendChild(svg); markerArt.appendChild(badge);
         }
         el.appendChild(markerArt);
+        el.appendChild(dot);
 
         const marker = new Marker({ element: el, anchor: 'bottom' })
           .setLngLat([poi.lng, poi.lat])
@@ -329,10 +355,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             pointerEvents: 'none',
             zIndex: '1000',
           });
-          const labelMarker = new Marker({ element: label, anchor: 'bottom', offset: [0, -Math.round(56 * scale + 3)] })
+          const labelMarker = new Marker({ element: label, anchor: 'bottom', offset: [0, -9] })
             .setLngLat([poi.lng, poi.lat])
             .addTo(map);
           markersRef.current.push(labelMarker);
+          markerViews.push({ button: el, art: markerArt, dot, fixedSize, label: labelMarker });
+        } else {
+          markerViews.push({ button: el, art: markerArt, dot, fixedSize });
         }
 
         el.addEventListener('click', () => {
@@ -340,15 +369,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           onSelectPoiRef.current(poi);
         });
         markersRef.current.push(marker);
-      }
-    };
+    }
 
-    renderPoiMarkers();
-    map.on('zoomend', renderPoiMarkers);
-    map.on('moveend', renderPoiMarkers);
+    updateMarkerZoom();
+    map.on('zoomend', updateMarkerZoom);
     return () => {
-      map.off('zoomend', renderPoiMarkers);
-      map.off('moveend', renderPoiMarkers);
+      map.off('zoomend', updateMarkerZoom);
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
     };

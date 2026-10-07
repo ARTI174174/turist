@@ -60,7 +60,7 @@ async function main() {
       status: 'active' as const,
       visibility: poi.visibility ?? 'public',
       markerAsset: `/assets/poi-markers/${CATEGORY_MARKERS[poi.categoryCode] ?? 3}.png`,
-      markerFixedSize: poi.markerFixedSize ?? (['city', 'township', 'village'].includes(poi.categoryCode) ? 1 : 0),
+      markerFixedSize: poi.markerFixedSize ?? 0,
       lat: poi.lat,
       lng: poi.lng,
       geofenceRadiusM: poi.geofenceRadiusM,
