@@ -222,7 +222,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const markerViews: { button: HTMLButtonElement; art: HTMLDivElement; dot: HTMLDivElement; fixedSize: boolean; label?: Marker }[] = [];
+    const markerViews: { button: HTMLButtonElement; art: HTMLDivElement; dot: HTMLSpanElement; fixedSize: boolean; label?: Marker }[] = [];
     const updateMarkerZoom = () => {
       const zoom = map.getZoom();
       for (const view of markerViews) {
