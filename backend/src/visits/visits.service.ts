@@ -259,23 +259,24 @@ export class VisitsService {
       return { visit: created, secretDiscovered: isSecret };
     });
 
-    let progress = await this.progression.addXp(userId, xpAwarded);
+    const progress = await this.progression.addXp(userId, xpAwarded);
     if (coinsAwarded > 0) await this.economy.earnCoins(userId, coinsAwarded, 'visit', { poiId: poi.id });
 
     const roulette = await this.prisma.rouletteChallenge.findFirst({ where: { userId, poiId: poi.id, status: 'active', expiresAt: { gt: new Date() } } });
-    let rouletteReward = 0;
+    let rouletteReward = { coins: 0, crystals: 0 };
     if (roulette) {
       rouletteReward = await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.rouletteChallenge.updateMany({ where: { id: roulette.id, status: 'active', expiresAt: { gt: new Date() } }, data: { status: 'completed', completedAt: new Date() } });
-        if (!claimed.count) return 0;
-        const prize = 5;
-        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: prize } } });
-        await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'traveler_roulette_win', amount: prize, currency: 'coins', metadata: { challengeId: roulette.id } } });
-        return prize;
+        if (!claimed.count) return { coins: 0, crystals: 0 };
+        const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: 1000 }, crystalsBalance: { increment: 1 } } });
+        await tx.transaction.createMany({ data: [
+          { walletId: wallet.id, type: 'earn', source: 'traveler_roulette_win', amount: 1000, currency: 'coins', metadata: { challengeId: roulette.id } },
+          { walletId: wallet.id, type: 'earn', source: 'traveler_roulette_win', amount: 1, currency: 'crystals', metadata: { challengeId: roulette.id } },
+        ] });
+        return { coins: 1000, crystals: 1 };
       });
-      if (rouletteReward > 0) {
-        await this.prisma.visit.update({ where: { id: visitResult.visit.id }, data: { xpAwarded: { increment: 5 }, coinsAwarded: { increment: 5 } } });
-        progress = await this.progression.addXp(userId, 5);
+      if (rouletteReward.coins > 0) {
+        await this.prisma.visit.update({ where: { id: visitResult.visit.id }, data: { coinsAwarded: { increment: rouletteReward.coins }, crystalsAwarded: { increment: rouletteReward.crystals } } });
       }
     }
 
@@ -286,9 +287,9 @@ export class VisitsService {
     return {
       status: 'verified',
       visit: visitResult.visit,
-      xpAwarded: xpAwarded + (rouletteReward > 0 ? 5 : 0),
-      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? secretCoinsAwarded : 0) + rouletteReward,
-      crystalsAwarded,
+      xpAwarded,
+      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? secretCoinsAwarded : 0) + rouletteReward.coins,
+      crystalsAwarded: crystalsAwarded + rouletteReward.crystals,
       secretDiscovery: visitResult.secretDiscovered ? { xp: xpAwarded, coins: secretCoinsAwarded } : undefined,
       rouletteReward,
       level: progress.level,

@@ -66,11 +66,11 @@ export function TravelActivities() {
 
     <div className="adventure-card rounded-2xl p-3">
       <div className="mb-2 flex items-center gap-2"><Sparkles size={18} className="text-brass" /><h2 className="font-display text-sm text-parchment">Рулетка путешественника</h2></div>
-      <p className="mb-2 text-[11px] text-parchment/65">200 золота за попытку · до 10 раз за календарный день. Обычно выпадает новая точка в радиусе 20 км: успей открыть её за 24 часа и получи +5 золота и +5 опыта. Иногда вместо точки выпадает денежный приз.</p>
+      <p className="mb-2 text-[11px] text-parchment/65">200 золота за попытку · до 10 раз за календарный день. Обычно выпадает новая точка в радиусе 20 км: успей исследовать её за 24 часа и получи +1 бриллиант и +1000 золота сверху обычной награды за точку. Иногда вместо точки выпадает денежный приз.</p>
       {!roulette ? <p className="text-xs text-stone">Загружаем…</p> : <>
         {roulette.challenge && <div className="mb-2 rounded-xl border border-brass/20 bg-black/15 p-2">
           <p className="text-[10px] text-brass">Попытка {roulette.challenge.spinIndex}</p>
-          {roulette.challenge.poi ? <><p className="text-xs text-parchment">{roulette.challenge.poi.title}</p><p className="mt-1 text-[10px] text-parchment/60">{roulette.challenge.status === 'completed' ? 'Точка открыта · +5 золота и +5 опыта' : roulette.challenge.status === 'expired' ? 'Срок вышел' : `Успей до ${new Date(roulette.challenge.expiresAt).toLocaleString('ru-RU')}`}</p>{roulette.challenge.status === 'active' && <button onClick={() => openPoint(roulette.challenge!.poi!)} className="mt-2 text-xs text-brass">Показать точку на карте →</button>}</> : <p className="text-xs text-parchment">{roulette.challenge.rewardCoins ? `Приз: ${roulette.challenge.rewardCoins.toLocaleString('ru-RU')} золота` : `Приз: ${roulette.challenge.rewardCrystals} 💎`}</p>}
+          {roulette.challenge.poi ? <><p className="text-xs text-parchment">{roulette.challenge.poi.title}</p><p className="mt-1 text-[10px] text-parchment/60">{roulette.challenge.status === 'completed' ? 'Точка открыта · +1 бриллиант и +1000 золота плюс награда точки' : roulette.challenge.status === 'expired' ? 'Срок вышел' : `Успей до ${new Date(roulette.challenge.expiresAt).toLocaleString('ru-RU')}`}</p>{roulette.challenge.status === 'active' && <button onClick={() => openPoint(roulette.challenge!.poi!)} className="mt-2 text-xs text-brass">Показать точку на карте →</button>}</> : <p className="text-xs text-parchment">{roulette.challenge.rewardCoins ? `Приз: ${roulette.challenge.rewardCoins.toLocaleString('ru-RU')} золота` : `Приз: ${roulette.challenge.rewardCrystals} 💎`}</p>}
         </div>}
         {roulette.available ? <button onClick={() => setConfirmRoulette(true)} className="w-full rounded-full border border-brass/50 py-2 text-xs text-brass">Крутить за 200 золота · осталось {roulette.remaining}</button> : <p className="text-xs text-stone">Попытки на сегодня закончились.</p>}
       </>}
@@ -78,7 +78,7 @@ export function TravelActivities() {
     {message && <p className="rounded-xl bg-moss/15 p-2 text-center text-xs text-parchment">{message}</p>}
     {confirmRoulette && <Modal title="Рулетка путешественника" onClose={() => setConfirmRoulette(false)}><div className="text-center">
       <Sparkles size={32} className="mx-auto mb-2 text-brass" />
-      <p className="text-sm text-parchment">В 94% случаев выпадет новая точка поблизости. Успей посетить её за 24 часа — получишь +5 золота и опыта. Редкие призы: 5 000 золота (5%), 10 000 (0,5%), 10 бриллиантов (0,4%) или 50 000 золота (0,1%).</p>
+      <p className="text-sm text-parchment">В 94% случаев выпадет новая точка поблизости. Успей исследовать её за 24 часа — получишь 1 бриллиант и 1000 золота плюс награду самой точки. Редкие призы: 5 000 золота (5%), 10 000 (0,5%), 10 бриллиантов (0,4%) или 50 000 золота (0,1%).</p>
       <p className="mt-2 text-xs text-parchment/60">Одна попытка стоит 200 золота. Можно крутить до 10 раз в день.</p>
       <button onClick={() => void startRoulette()} disabled={busy} className="mt-4 w-full rounded-full bg-moss py-3 text-sm text-parchment">{busy ? 'Запускаем…' : 'Крутим за 200 золота'}</button>
     </div></Modal>}

@@ -19,7 +19,7 @@ interface PoiComment {
 
 interface ExtendedVisitResult extends VisitCompleteResult {
   secretDiscovery?: { xp: number; coins: number };
-  rouletteReward?: number;
+  rouletteReward?: { coins: number; crystals: number };
 }
 
 interface POICardProps {
