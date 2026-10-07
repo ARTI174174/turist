@@ -78,7 +78,7 @@ export function TravelActivities() {
     {message && <p className="rounded-xl bg-moss/15 p-2 text-center text-xs text-parchment">{message}</p>}
     {confirmRoulette && <Modal title="Рулетка путешественника" onClose={() => setConfirmRoulette(false)}><div className="text-center">
       <Sparkles size={32} className="mx-auto mb-2 text-brass" />
-      <p className="text-sm text-parchment">В 94% случаев выпадет новая точка поблизости. Успей исследовать её за 24 часа — получишь 1 бриллиант и 1000 золота плюс награду самой точки. Редкие призы: 5 000 золота (5%), 10 000 (0,5%), 10 бриллиантов (0,4%) или 50 000 золота (0,1%).</p>
+      <p className="text-sm text-parchment">Исследуй предложенную точку в течение 24 часов и получи 1000 золота, 1 бриллиант и награду за саму точку. Также есть шанс выиграть золото.</p>
       <p className="mt-2 text-xs text-parchment/60">Одна попытка стоит 200 золота. Можно крутить до 10 раз в день.</p>
       <button onClick={() => void startRoulette()} disabled={busy} className="mt-4 w-full rounded-full bg-moss py-3 text-sm text-parchment">{busy ? 'Запускаем…' : 'Крутим за 200 золота'}</button>
     </div></Modal>}
