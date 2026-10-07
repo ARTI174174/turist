@@ -8,6 +8,7 @@ import { getUpgradeSettings } from '../common/game-upgrades';
 import { StartAttemptDto, HeartbeatDto, ProofDto } from './dto/attempt.dto';
 
 const REQUIRED_DWELL_SECONDS = 20;
+const DISTANCE_INDEPENDENT_TUTORIAL_POI = 'Открыть Челябинскую область';
 
 @Injectable()
 export class VisitsService {
@@ -43,6 +44,8 @@ export class VisitsService {
       effectiveRadius,
       dto.accuracyM,
     );
+    const distanceIndependent = poi.title === DISTANCE_INDEPENDENT_TUTORIAL_POI;
+    const canExplore = distanceIndependent || withinGeofence;
 
     await this.anticheat.recordGeoLog(userId, dto.lat, dto.lng, dto.accuracyM);
 
@@ -55,7 +58,7 @@ export class VisitsService {
         accuracyMeters: dto.accuracyM,
         distanceMeters,
         dwellSeconds: 0,
-        lastHeartbeatAt: withinGeofence ? new Date() : null,
+        lastHeartbeatAt: canExplore ? new Date() : null,
         status: 'pending',
       },
     });
@@ -63,7 +66,7 @@ export class VisitsService {
     return {
       attemptId: attempt.id,
       distanceMeters,
-      withinGeofence,
+      withinGeofence: canExplore,
       lowAccuracyWarning: lowAccuracy,
       requiredDwellSeconds: REQUIRED_DWELL_SECONDS,
       requiredProof: poi.requiresProof ? 'photo' : 'none',
@@ -87,10 +90,11 @@ export class VisitsService {
       effectiveRadius,
       dto.accuracyM,
     );
+    const canExplore = poi.title === DISTANCE_INDEPENDENT_TUTORIAL_POI || withinGeofence;
 
     await this.anticheat.recordGeoLog(userId, dto.lat, dto.lng, dto.accuracyM);
 
-    if (!withinGeofence) {
+    if (!canExplore) {
       // Игрок покинул геозону — таймер сбрасывается (допуск на один пропуск реализован
       // на уровне клиента: клиент не шлёт heartbeat при кратковременной потере GPS)
       const updated = await this.prisma.visitAttempt.update({
@@ -160,7 +164,7 @@ export class VisitsService {
     const player = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { glovesLevel: true } });
     const gloves = await getUpgradeSettings(this.prisma, 'gloves');
     const effectiveRadius = poi.geofenceRadiusM + (gloves[player.glovesLevel]?.effectValue ?? 0);
-    const geofenceSignal = attempt.distanceMeters && attempt.distanceMeters > effectiveRadius ? 100 : 0;
+    const geofenceSignal = poi.title !== DISTANCE_INDEPENDENT_TUTORIAL_POI && attempt.distanceMeters && attempt.distanceMeters > effectiveRadius ? 100 : 0;
     const dwellSignal = attempt.dwellSeconds < REQUIRED_DWELL_SECONDS ? 100 : 0;
 
     const score = this.anticheat.computeScore({

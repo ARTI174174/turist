@@ -26,7 +26,6 @@ export default function MapPage() {
   const [crystalMsg, setCrystalMsg] = useState<string | null>(null);
   const [collectingCrystal, setCollectingCrystal] = useState(false);
   const mapRef = useRef<MapViewHandle>(null);
-  const starterPointOpenedRef = useRef(false);
   const queryClient = useQueryClient();
 
   useEffect(() => setHydrated(true), []);
@@ -49,15 +48,9 @@ export default function MapPage() {
     enabled: !!user,
   });
   const { data: welcome } = useQuery<{ completed: boolean; pointFound: boolean }>({ queryKey: ['game', 'welcome', user?.id], queryFn: () => api.get('/game/welcome'), enabled: !!user });
-  useEffect(() => {
-    if (welcome?.completed || starterPointOpenedRef.current) return;
-    const starter = pois.find((poi) => poi.title === 'Открыть Челябинскую область');
-    if (starter) {
-      starterPointOpenedRef.current = true;
-      selectPoi(starter);
-    }
-  }, [welcome?.completed, pois, selectPoi]);
-
+  const tutorialFocusPoi = welcome && !welcome.completed && !welcome.pointFound
+    ? pois.find((poi) => poi.title === 'Открыть Челябинскую область') ?? null
+    : null;
   const { data: secretPois = [] } = useQuery<Poi[]>({
     queryKey: ['game', 'secrets', 'nearby', posKey],
     queryFn: () => api.get<Poi[]>(`/game/secrets/nearby?lat=${position!.lat}&lng=${position!.lng}`),
@@ -119,6 +112,7 @@ export default function MapPage() {
         ref={mapRef}
         pois={[...pois, ...secretPois]}
         selectedPoi={selectedPoi}
+        tutorialFocusPoi={tutorialFocusPoi}
         crystals={crystals}
         position={position}
         userAvatar={user.character?.avatarEmoji ?? '🙂'}
@@ -194,12 +188,6 @@ export default function MapPage() {
           position={position}
           onClose={() => selectPoi(null)}
           onShowOnMap={() => { mapRef.current?.focusOnPoi(selectedPoi); selectPoi(null); }}
-          onTutorialComplete={async () => {
-            await api.post('/game/welcome/complete', {});
-            await queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
-            await queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
-            selectPoi(null);
-          }}
         />
       )}
 

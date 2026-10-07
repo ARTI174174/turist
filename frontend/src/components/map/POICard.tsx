@@ -28,12 +28,11 @@ interface POICardProps {
   onClose: () => void;
   hideExplore?: boolean;
   onShowOnMap?: () => void;
-  onTutorialComplete?: () => Promise<void>;
 }
 
 type FlowState = 'idle' | 'starting' | 'walking' | 'dwelling' | 'ready' | 'submitting' | 'success' | 'review' | 'error';
 
-export function POICard({ poi, position, onClose, hideExplore = false, onShowOnMap, onTutorialComplete }: POICardProps) {
+export function POICard({ poi, position, onClose, hideExplore = false, onShowOnMap }: POICardProps) {
   const [flow, setFlow] = useState<FlowState>('idle');
   const [attempt, setAttempt] = useState<VisitAttemptStart | null>(null);
   const [dwellSeconds, setDwellSeconds] = useState(0);
@@ -47,8 +46,6 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
   const [commentText, setCommentText] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
   const [sendingComment, setSendingComment] = useState(false);
-  const [tutorialError, setTutorialError] = useState<string | null>(null);
-  const [finishingTutorial, setFinishingTutorial] = useState(false);
   const { data: comments = [] } = useQuery<PoiComment[]>({
     queryKey: ['poi', poi.id, 'comments'],
     queryFn: () => api.get<PoiComment[]>(`/poi/${poi.id}/comments`),
@@ -64,7 +61,8 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
   const distanceMeters = position
     ? haversine(position.lat, position.lng, poi.lat, poi.lng)
     : null;
-  const withinGeofence = distanceMeters !== null && distanceMeters <= poi.geofenceRadiusM;
+  const distanceIndependent = poi.title === 'Открыть Челябинскую область';
+  const withinGeofence = distanceIndependent || (distanceMeters !== null && distanceMeters <= poi.geofenceRadiusM);
 
   async function handleStartExplore() {
     if (!position) return;
@@ -146,6 +144,10 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'leaderboard'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'secrets', 'nearby'] });
+        if (poi.title === 'Открыть Челябинскую область') {
+          queryClient.invalidateQueries({ queryKey: ['game', 'welcome'] });
+          queryClient.invalidateQueries({ queryKey: ['game', 'daily'] });
+        }
       } else {
         setFlow('review');
       }
@@ -169,15 +171,6 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
     } finally {
       setSendingComment(false);
     }
-  }
-
-  async function finishTutorial() {
-    if (!onTutorialComplete || finishingTutorial) return;
-    setFinishingTutorial(true);
-    setTutorialError(null);
-    try { await onTutorialComplete(); }
-    catch (error) { setTutorialError(error instanceof ApiError ? error.message : 'Не удалось открыть карту путешествия'); }
-    finally { setFinishingTutorial(false); }
   }
 
   return (
@@ -206,7 +199,7 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         {onShowOnMap && <button onClick={onShowOnMap} className="flex w-full items-center justify-center gap-2 rounded-xl border border-brass/40 bg-black/20 py-2.5 text-xs text-parchment"><MapPin size={15} className="text-brass" />Показать на карте</button>}
         <div className="flex items-center gap-2 font-mono text-xs text-stone">
           <MapPin size={14} />
-          {hideExplore ? 'Вы уже посетили это место' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
+          {hideExplore ? 'Вы уже посетили это место' : distanceIndependent ? 'Дистанция не важна; для исследования нужна геолокация' : distanceMeters !== null ? `${Math.round(distanceMeters)} м от вас` : 'Определяем расстояние…'}
           <span className="ml-auto">Открыли: {poi.visitCount} игроков</span>
         </div>
 
@@ -227,6 +220,7 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         {!hideExplore && <ExploreControls
           flow={flow}
           withinGeofence={withinGeofence}
+          hasPosition={!!position}
           requiredDwell={attempt?.requiredDwellSeconds ?? 20}
           dwellSeconds={dwellSeconds}
           reward={reward}
@@ -235,8 +229,6 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
           onStart={handleStartExplore}
           onComplete={handleComplete}
         />}
-        {!hideExplore && flow === 'success' && poi.title === 'Открыть Челябинскую область' && onTutorialComplete && <div className="space-y-2 rounded-2xl border border-brass/40 bg-forest/20 p-3 text-center"><p className="font-display text-sm text-brass">Поздравляем! Ты открыл Челябинскую область</p><p className="text-xs text-parchment/75">Теперь доступна вся карта и можно начать большое путешествие.</p>{tutorialError && <p className="text-xs text-danger">{tutorialError}</p>}<button onClick={() => void finishTutorial()} disabled={finishingTutorial} className="w-full rounded-full bg-moss py-3 text-xs font-semibold text-parchment disabled:opacity-50">{finishingTutorial ? 'Открываем карту…' : 'Начать моё путешествие по Челябинской области!'}</button></div>}
-
         <section className="border-t border-brass/25 pt-3">
           <h3 className="mb-2 flex items-center gap-2 font-display text-sm text-parchment">
             <MessageCircle size={16} className="text-brass" /> Обсуждение <span className="font-mono text-[10px] text-stone">{comments.length}</span>
@@ -271,6 +263,7 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
 function ExploreControls({
   flow,
   withinGeofence,
+  hasPosition,
   requiredDwell,
   dwellSeconds,
   reward,
@@ -281,6 +274,7 @@ function ExploreControls({
 }: {
   flow: FlowState;
   withinGeofence: boolean;
+  hasPosition: boolean;
   requiredDwell: number;
   dwellSeconds: number;
   reward: VisitCompleteResult | null;
@@ -337,10 +331,10 @@ function ExploreControls({
     return (
       <button
         onClick={onStart}
-        disabled={!withinGeofence}
+        disabled={!hasPosition || !withinGeofence}
         className="w-full rounded-full bg-forest py-3 font-display text-parchment disabled:opacity-40"
       >
-        {withinGeofence ? 'Исследовать' : `Подойдите ближе (< ${geofenceRadiusM} м)`}
+        {!hasPosition ? 'Разрешите геолокацию для исследования' : withinGeofence ? 'Исследовать' : `Подойдите ближе (< ${geofenceRadiusM} м)`}
       </button>
     );
   }

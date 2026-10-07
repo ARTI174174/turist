@@ -26,6 +26,20 @@ body {
   width: 100%;
 }
 
+@keyframes tutorial-poi-breathe {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(255, 148, 31, .7)); }
+  50% { transform: scale(1.12); filter: drop-shadow(0 0 11px rgba(255, 148, 31, .95)); }
+}
+
+.tutorial-poi-breathe {
+  transform-origin: bottom center;
+  animation: tutorial-poi-breathe 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-poi-breathe { animation: none; }
+}
+
 /* Принудительный телефонный формат: на широких экранах (десктоп) контент
    ограничен шириной телефона и отцентрирован; на настоящем телефоне —
    занимает весь экран как обычно, без рамки. */

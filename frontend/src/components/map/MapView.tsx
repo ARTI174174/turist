@@ -9,6 +9,7 @@ import { GeoPosition } from '@/hooks/useGeolocation';
 interface MapViewProps {
   pois: Poi[];
   selectedPoi?: Poi | null;
+  tutorialFocusPoi?: Poi | null;
   crystals?: Crystal[];
   position: GeoPosition | null;
   userAvatar: string;
@@ -67,7 +68,7 @@ const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { pois, selectedPoi = null, crystals = [], position, userAvatar, onSelectPoi, onSelectCrystal },
+  { pois, selectedPoi = null, tutorialFocusPoi = null, crystals = [], position, userAvatar, onSelectPoi, onSelectCrystal },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -79,6 +80,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const userHeadingLayerRef = useRef<HTMLDivElement | null>(null);
   const userAvatarValueRef = useRef<string | null>(null);
   const hasCenteredOnceRef = useRef(false);
+  const tutorialFocusedPoiIdRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   // Храним актуальные callback-и, чтобы обновление GPS/родителя не заставляло
@@ -220,6 +222,13 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !mapReady || !tutorialFocusPoi || tutorialFocusedPoiIdRef.current === tutorialFocusPoi.id) return;
+    tutorialFocusedPoiIdRef.current = tutorialFocusPoi.id;
+    map.flyTo({ center: [tutorialFocusPoi.lng, tutorialFocusPoi.lat], zoom: Math.max(map.getZoom(), 13), duration: 1100 });
+  }, [tutorialFocusPoi, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !mapReady) return;
 
     const markerViews: { button: HTMLButtonElement; art: HTMLDivElement; dot: HTMLSpanElement; fixedSize: boolean; label?: Marker }[] = [];
@@ -303,6 +312,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=4`;
           image.alt = '';
           image.draggable = false;
+          if (tutorialFocusPoi?.id === poi.id) image.className = 'tutorial-poi-breathe';
           Object.assign(image.style, {
             display: 'block',
             width: '100%',
@@ -378,7 +388,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
     };
-  }, [pois, mapReady]);
+  }, [pois, mapReady, tutorialFocusPoi?.id]);
 
   // Кристаллы.
   useEffect(() => {
