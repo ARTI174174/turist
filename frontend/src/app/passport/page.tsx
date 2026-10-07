@@ -115,6 +115,11 @@ export default function PassportPage() {
           </div>
         </section>
 
+        <details className="adventure-card mb-3 rounded-2xl p-3">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-1 text-sm font-semibold text-parchment focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-light [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><BookOpen size={17} className="text-amber-light" aria-hidden="true" />Экспедиции и маршруты</span><ChevronDown size={17} className="shrink-0 text-amber-light transition-transform" aria-hidden="true" /></summary>
+          <div className="mt-3 space-y-4 border-t border-brass/20 pt-3"><TravelActivities /><RouteSuggestions /></div>
+        </details>
+
         <section aria-labelledby="visited-heading" className="mb-5">
           <div className="mb-3 flex items-end justify-between gap-3"><div><h2 id="visited-heading" className="font-display text-lg text-parchment">Мои открытия</h2><p className="mt-0.5 text-xs text-parchment/70">Каждое место — часть твоего пути</p></div><span className="whitespace-nowrap text-xs text-amber-light">{visits.length} {visitWord(visits.length)}</span></div>
           <div role="group" aria-label="Фильтр посещённых мест" className="mb-3 flex gap-2 overflow-x-auto pb-1">
@@ -126,10 +131,6 @@ export default function PassportPage() {
           </div>}
         </section>
 
-        <details className="adventure-card mb-3 rounded-2xl p-3">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-1 text-sm font-semibold text-parchment focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-light [&::-webkit-details-marker]:hidden"><span className="flex items-center gap-2"><BookOpen size={17} className="text-amber-light" aria-hidden="true" />Экспедиции и маршруты</span><ChevronDown size={17} className="shrink-0 text-amber-light transition-transform" aria-hidden="true" /></summary>
-          <div className="mt-3 space-y-4 border-t border-brass/20 pt-3"><TravelActivities /><RouteSuggestions /></div>
-        </details>
       </div>
 
       {selectedPoi && <POICard poi={selectedPoi} position={null} hideExplore onClose={() => setSelectedPoi(null)} onShowOnMap={() => { selectMapPoi(selectedPoi); router.push('/map'); }} />}
