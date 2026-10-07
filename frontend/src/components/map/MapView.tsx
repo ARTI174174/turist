@@ -228,7 +228,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       for (const view of markerViews) {
         const phase = view.fixedSize ? 1 : Math.max(0, Math.min(1, (zoom - 8.5) / 4));
         const scale = view.fixedSize ? 1 : 0.12 + phase * 0.88;
-        const dotSize = 7 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
+        const dotSize = 9 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
         view.button.style.width = `${Math.max(dotSize, 46 * scale)}px`;
         view.button.style.height = `${Math.max(dotSize, 56 * scale)}px`;
         view.art.style.transform = `translateX(-50%) scale(${scale})`;
@@ -281,8 +281,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           position: 'absolute',
           left: '50%',
           bottom: '0',
-          width: '4px',
-          height: '4px',
+          width: '9px',
+          height: '9px',
           transform: 'translateX(-50%)',
           borderRadius: '50%',
           background: '#ff941f',
@@ -353,7 +353,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             font: '700 13px/1.2 system-ui, sans-serif',
             textShadow: '-1px -1px 0 #f2ead7, 1px -1px 0 #f2ead7, -1px 1px 0 #f2ead7, 1px 1px 0 #f2ead7, 0 1px 4px #f2ead7',
             pointerEvents: 'none',
-            zIndex: '1000',
+            zIndex: '19',
           });
           const labelMarker = new Marker({ element: label, anchor: 'bottom', offset: [0, -9] })
             .setLngLat([poi.lng, poi.lat])

@@ -93,8 +93,8 @@ export function GameOverlays() {
     const steps = [
       { icon: <Compass size={20} />, title: 'Добро пожаловать в лагерь', text: 'Сейчас ты в своём лагере — здесь спокойно и безопасно. Внизу находится главное меню: профиль, лагерь, карта «В путь», дневник и друзья.' },
       { icon: <Sparkles size={20} />, title: 'Золото, бриллианты и уровень', text: 'Золото и бриллианты нужны для покупок в магазине. За открытия ты получаешь опыт и повышаешь уровень. Чем выше уровень, тем выше место в списке лучших игроков.' },
-      { icon: <MapPin size={20} />, title: 'Карта и магазин', text: 'На карте «В путь» находятся рейтинг игроков, задания и магазин. В магазине можно купить улучшения, которые помогают в путешествии.' },
       { icon: <BookOpen size={20} />, title: 'Дневник и друзья', text: 'В дневнике смотри посещённые места, экспедиции и маршруты участников. В друзьях можно добавлять путешественников, смотреть их достижения и посещать места вместе.' },
+      { icon: <MapPin size={20} />, title: 'Карта и магазин', text: 'На карте «В путь» находятся рейтинг игроков, задания и магазин. В магазине можно купить улучшения, которые помогают в путешествии.' },
     ];
     const step = steps[introStep];
     return <Modal title="Добро пожаловать в ТУРИСТ" onClose={finishIntro}>
@@ -103,13 +103,13 @@ export function GameOverlays() {
         <p className="text-center text-[11px] text-parchment/50">{introStep + 1} / {steps.length}</p>
         {introStep < steps.length - 1
           ? <button onClick={() => setIntroStep((current) => current + 1)} className="w-full rounded-full bg-moss py-3 font-display text-parchment">Продолжить</button>
-          : <button onClick={() => { finishIntro(); router.push('/map'); }} className="w-full rounded-full bg-moss py-3 font-display text-parchment">В путь — открыть карту</button>}
+          : <button onClick={() => { finishIntro(); router.push('/map'); }} className="w-full rounded-full bg-moss py-3 font-display text-parchment">Продолжить</button>}
       </div>
     </Modal>;
   }
 
   if (showTutorialComplete) return <Modal title="Поздравляем!" onClose={() => {}}>
-    <div className="space-y-3 text-center"><p className="font-display text-parchment">Ты открыл Челябинскую область!</p><p className="text-xs text-parchment/70">Теперь доступна вся карта и можно начать большое путешествие.</p>{tutorialError && <p className="text-xs text-danger">{tutorialError}</p>}<button onClick={() => void completeTutorial()} disabled={completingTutorial} className="w-full rounded-full bg-moss py-3 text-sm font-display text-parchment disabled:opacity-50">{completingTutorial ? 'Открываем карту…' : 'Начать моё путешествие по Челябинской области!'}</button></div>
+    <div className="space-y-3 text-center"><p className="font-display text-parchment">Ты открыл Челябинскую область!</p><p className="text-xs leading-relaxed text-parchment/75">Смысл игры — самостоятельно исследовать интересные места. На карте выбери любую точку, подойди к ней и нажми «Исследовать», чтобы открыть её и получить награду.</p>{tutorialError && <p className="text-xs text-danger">{tutorialError}</p>}<button onClick={() => void completeTutorial()} disabled={completingTutorial} className="w-full rounded-full bg-moss py-3 text-sm font-display text-parchment disabled:opacity-50">{completingTutorial ? 'Открываем карту…' : 'Выбрать точку на карте'}</button></div>
   </Modal>;
 
   if (showDaily && daily) return <Modal title="Поздравляем! Награда путешественника" onClose={finishDaily}>
