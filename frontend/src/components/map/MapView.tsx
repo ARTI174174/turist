@@ -228,7 +228,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       for (const view of markerViews) {
         const phase = view.fixedSize ? 1 : Math.max(0, Math.min(1, (zoom - 8.5) / 4));
         const scale = view.fixedSize ? 1 : 0.12 + phase * 0.88;
-        const dotSize = 4 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
+        const dotSize = 7 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
         view.button.style.width = `${Math.max(dotSize, 46 * scale)}px`;
         view.button.style.height = `${Math.max(dotSize, 56 * scale)}px`;
         view.art.style.transform = `translateX(-50%) scale(${scale})`;
@@ -242,8 +242,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     for (const poi of pois) {
         if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
-        const fixedSize = poi.markerFixedSize === 1;
         const settlement = ['city', 'township', 'village'].includes(poi.category?.code ?? '');
+        const fixedSize = settlement || poi.markerFixedSize === 1;
 
         const el = document.createElement('button');
         el.type = 'button';
@@ -285,7 +285,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
           height: '4px',
           transform: 'translateX(-50%)',
           borderRadius: '50%',
-          background: '#e5ad43',
+          background: '#ff941f',
           border: '1px solid rgba(255,248,225,.95)',
           boxShadow: '0 1px 4px rgba(20,25,17,.8)',
           opacity: '1',
