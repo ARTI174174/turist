@@ -105,6 +105,27 @@ export const POI_CATALOG: PoiSeedData[] = [
     interestingFacts: ['Вода в озере слабосолёная.', 'Озеро охраняется как памятник природы.'],
     bestSeason: ['spring', 'summer', 'autumn'], difficulty: 'easy', baseXp: 50, baseCoins: 300, baseCrystals: 0, requiresProof: false,
   },
+  {
+    "title": "Повезло",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 55.147456,
+    "lng": 61.393771,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на водоём в Сатке.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 30000,
+    "baseCoins": 30000,
+    "baseCrystals": 500,
+    "requiresProof": false
+},
   // Фототочки: координаты и описания предоставлены владельцем игры.
   {
     "title": "Вид на водоём — Сатка",
