@@ -316,6 +316,7 @@ a {
 /* Приподнимаем сцену: её нижний край скрыт под градиентом и навигацией. */
 .camp-scenery { top: -48px; bottom: 48px; }
 .camp-scenery::after { content: ''; position: absolute; inset: auto 0 0; height: 100px; background: linear-gradient(transparent, #080b08); }
+.camp-tent-object { transform: scaleX(-1); }
 
 .camp-price-sign {
   isolation: isolate;
