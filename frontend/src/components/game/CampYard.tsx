@@ -70,7 +70,7 @@ export function CampYard() {
 
   const renderObject = (kind: CampKind, label: string, icon: React.ReactNode, style: React.CSSProperties) => {
     const level = levelFor(kind);
-    const assetRoot = kind === 'tent' ? '/assets/camp/objects/tent' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack';
+    const assetRoot = kind === 'tent' ? '/assets/camp/objects/tent-v2' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack';
     const assetExtension = kind === 'backpack' ? 'webp' : 'png';
     return <button key={kind} onClick={() => setSelected(kind)} className="pointer-events-auto absolute z-[4] flex items-end justify-center bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass" style={style} aria-label={level ? `Улучшить: ${LEVEL_LABELS[kind][level]}` : `Купить: ${label}`}>
       {level > 0 ? <img src={`${assetRoot}-${level}.${assetExtension}`} alt={LEVEL_LABELS[kind][level]} loading="lazy" className={`${kind === 'tent' ? 'camp-tent-object ' : ''}h-full w-full object-contain object-bottom drop-shadow-[0_6px_8px_rgba(0,0,0,0.55)]`} /> : <span className="camp-price-sign relative mb-1 flex min-h-[58px] min-w-[86px] flex-col items-center justify-center rounded-md border border-[#d1ae66]/70 px-2 py-1.5 text-center shadow-[0_5px_10px_#0008]">
@@ -98,7 +98,7 @@ export function CampYard() {
           : 'Рюкзак даёт шанс найти одну из уникальных коллекционных вещей при первом подтверждённом посещении новой точки. Находки можно хранить и продавать.';
       return <Modal title={level ? levelName : `Установить: ${LEVEL_LABELS[kind][1]}`} onClose={() => setSelected(null)}>
         <div className="mb-3 rounded-2xl border border-brass/20 bg-black/25 p-3 text-center">
-          <img src={`${kind === 'tent' ? '/assets/camp/objects/tent' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack'}-${level || next}.${kind === 'backpack' ? 'webp' : 'png'}`} alt="" className={`${kind === 'tent' ? 'camp-tent-object ' : ''}mx-auto h-36 w-full object-contain`} />
+          <img src={`${kind === 'tent' ? '/assets/camp/objects/tent-v2' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack'}-${level || next}.${kind === 'backpack' ? 'webp' : 'png'}`} alt="" className={`${kind === 'tent' ? 'camp-tent-object ' : ''}mx-auto h-36 w-full object-contain`} />
           <p className="mt-1 font-display text-base text-parchment">{levelName}</p>
           <p className="mt-1 text-xs leading-relaxed text-parchment/70">{description}</p>
         </div>
