@@ -25,7 +25,8 @@ async function bootstrap() {
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
     if (isProduction) {
-      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+      // Avoid extending this policy to unrelated subdomains owned by the user.
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000');
     }
     next();
   });

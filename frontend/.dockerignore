@@ -1,0 +1,9 @@
+.git
+node_modules
+.next
+out
+dist
+coverage
+.env*
+*.log
+public/maplibre

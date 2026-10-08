@@ -1,0 +1,17 @@
+[Unit]
+Description=Create and verify a local PostgreSQL backup for Turist
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/turist/deploy/backup-database.sh
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+StateDirectory=turist-backups
+StateDirectoryMode=0700

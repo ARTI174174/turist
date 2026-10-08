@@ -22,10 +22,17 @@ export class AuthController {
     response.cookie('turist_refresh', refreshToken, {
       httpOnly: true,
       secure: this.isProduction(),
-      sameSite: this.isProduction() ? 'none' : 'lax',
+      sameSite: this.refreshCookieSameSite(),
       path: '/api/v1/auth',
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
+  }
+
+  private refreshCookieSameSite(): 'strict' | 'lax' | 'none' {
+    const configured = process.env.REFRESH_COOKIE_SAME_SITE?.toLowerCase();
+    if (configured === 'strict' || configured === 'lax' || configured === 'none') return configured;
+    // Preserve the existing cross-site Vercel/Render setup unless explicitly configured.
+    return this.isProduction() ? 'none' : 'lax';
   }
 
   private isProduction() {
@@ -87,7 +94,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(@CurrentUser() user: CurrentUserPayload, @Res({ passthrough: true }) response: Response) {
-    response.clearCookie('turist_refresh', { httpOnly: true, secure: this.isProduction(), sameSite: this.isProduction() ? 'none' : 'lax', path: '/api/v1/auth' });
+    response.clearCookie('turist_refresh', { httpOnly: true, secure: this.isProduction(), sameSite: this.refreshCookieSameSite(), path: '/api/v1/auth' });
     return this.authService.logout(user.userId);
   }
 
@@ -112,7 +119,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Delete('account')
   async deleteAccount(@CurrentUser() user: CurrentUserPayload, @Res({ passthrough: true }) response: Response) {
-    response.clearCookie('turist_refresh', { httpOnly: true, secure: this.isProduction(), sameSite: this.isProduction() ? 'none' : 'lax', path: '/api/v1/auth' });
+    response.clearCookie('turist_refresh', { httpOnly: true, secure: this.isProduction(), sameSite: this.refreshCookieSameSite(), path: '/api/v1/auth' });
     await this.prisma.$transaction([
       this.prisma.refreshToken.updateMany({
         where: { userId: user.userId, revoked: false },
