@@ -111,13 +111,15 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         url: '/data/chelyabinsk-oblast-shade.png',
         coordinates: [[54.8, 58], [65.2, 58], [65.2, 49], [54.8, 49]],
       });
-      // The transparent mask darkens the outside with a broad, soft fade.
-      // HTML POI, crystal, and player markers stay above this map style layer.
+      // Put the shade below map symbols: POI icons are MapLibre symbol layers,
+      // inserted immediately before place labels, so they stay visible outside
+      // the region too.
+      const firstSymbolLayer = style.layers.find((layer) => layer.type === 'symbol');
       map.addLayer({ id: 'chelyabinsk-oblast-outside-shade-layer', type: 'raster', source: shadeSource, paint: {
         'raster-opacity': 1,
         'raster-fade-duration': 0,
         'raster-resampling': 'linear',
-      } });
+      } }, firstSymbolLayer?.id);
 
       for (const layer of style.layers) {
         if (layer.type !== 'symbol') continue;
