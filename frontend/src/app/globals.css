@@ -325,6 +325,21 @@ a {
 .camp-price-sign::before { content: ''; position: absolute; inset: 4px; border: 1px solid #d0a35e55; border-radius: 3px; pointer-events: none; }
 .camp-price-sign-post { position: absolute; z-index: -1; top: calc(100% - 5px); left: 50%; width: 7px; height: 27px; transform: translateX(-50%); background: linear-gradient(90deg,#553820,#a67743 45%,#53371f); box-shadow: 0 3px 4px #0007; }
 
+.camp-ground-shadow::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 22%;
+  bottom: 1%;
+  width: 88%;
+  height: 13%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(22 14 9 / 58%) 0%, rgb(22 14 9 / 34%) 48%, rgb(22 14 9 / 0%) 78%);
+  filter: blur(8px);
+  transform: skewX(-22deg) scaleY(.52);
+  pointer-events: none;
+}
+
 .shop-buy-button {
   display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center;
   flex-wrap: wrap; gap: 6px; padding: 10px 8px; border-radius: 999px;

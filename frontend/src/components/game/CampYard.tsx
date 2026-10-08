@@ -70,10 +70,10 @@ export function CampYard() {
 
   const renderObject = (kind: CampKind, label: string, icon: React.ReactNode, style: React.CSSProperties) => {
     const level = levelFor(kind);
-    const assetRoot = kind === 'tent' ? '/assets/camp/objects/tent-v3' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack';
+    const assetRoot = kind === 'tent' ? '/assets/camp/objects/tent-v4' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack';
     const assetExtension = kind === 'backpack' ? 'webp' : 'png';
-    return <button key={kind} onClick={() => setSelected(kind)} className="pointer-events-auto absolute z-[4] flex items-end justify-center bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass" style={style} aria-label={level ? `Улучшить: ${LEVEL_LABELS[kind][level]}` : `Купить: ${label}`}>
-      {level > 0 ? <img src={`${assetRoot}-${level}.${assetExtension}`} alt={LEVEL_LABELS[kind][level]} loading="lazy" className="h-full w-full object-contain object-bottom drop-shadow-[0_6px_8px_rgba(0,0,0,0.55)]" /> : <span className="camp-price-sign relative mb-1 flex min-h-[58px] min-w-[86px] flex-col items-center justify-center rounded-md border border-[#d1ae66]/70 px-2 py-1.5 text-center shadow-[0_5px_10px_#0008]">
+    return <button key={kind} onClick={() => setSelected(kind)} className={`pointer-events-auto absolute z-[4] flex items-end justify-center bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brass ${kind === 'tent' && level > 0 ? 'camp-ground-shadow' : ''}`} style={style} aria-label={level ? `Улучшить: ${LEVEL_LABELS[kind][level]}` : `Купить: ${label}`}>
+      {level > 0 ? <img src={`${assetRoot}-${level}.${assetExtension}`} alt={LEVEL_LABELS[kind][level]} loading="lazy" className="relative z-[1] h-full w-full object-contain object-bottom" /> : <span className="camp-price-sign relative mb-1 flex min-h-[58px] min-w-[86px] flex-col items-center justify-center rounded-md border border-[#d1ae66]/70 px-2 py-1.5 text-center shadow-[0_5px_10px_#0008]">
         <span className="flex items-center gap-1 text-[10px] font-semibold leading-tight text-[#fff2cf]">{icon}{label}</span><span className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#ffd274]"><img src="/assets/icons/coin.png" alt="" className="h-3.5 w-3.5" />1 500</span><span className="camp-price-sign-post" />
       </span>}
     </button>;
@@ -98,7 +98,7 @@ export function CampYard() {
           : 'Рюкзак даёт шанс найти одну из уникальных коллекционных вещей при первом подтверждённом посещении новой точки. Находки можно хранить и продавать.';
       return <Modal title={level ? levelName : `Установить: ${LEVEL_LABELS[kind][1]}`} onClose={() => setSelected(null)}>
         <div className="mb-3 rounded-2xl border border-brass/20 bg-black/25 p-3 text-center">
-          <img src={`${kind === 'tent' ? '/assets/camp/objects/tent-v3' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack'}-${level || next}.${kind === 'backpack' ? 'webp' : 'png'}`} alt="" className="mx-auto h-36 w-full object-contain" />
+          <img src={`${kind === 'tent' ? '/assets/camp/objects/tent-v4' : kind === 'hearth' ? '/assets/camp/objects/hearth' : '/assets/camp/objects/backpack'}-${level || next}.${kind === 'backpack' ? 'webp' : 'png'}`} alt="" className="mx-auto h-36 w-full object-contain" />
           <p className="mt-1 font-display text-base text-parchment">{levelName}</p>
           <p className="mt-1 text-xs leading-relaxed text-parchment/70">{description}</p>
         </div>
