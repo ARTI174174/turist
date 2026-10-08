@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 
+const REMOVED_SHOP_ITEMS = ['Тёплая куртка "Урал"', 'Рюкзак "Следопыт"', 'Ушанка "Легенда Урала"', 'Питомец: Уральский лис'];
+
 @Injectable()
 export class EconomyService {
   constructor(private prisma: PrismaService) {}
@@ -44,13 +46,13 @@ export class EconomyService {
 
   async listShopItems(category?: string) {
     return this.prisma.shopItem.findMany({
-      where: { active: true, ...(category ? { category } : {}) },
+      where: { active: true, name: { notIn: REMOVED_SHOP_ITEMS }, ...(category ? { category } : {}) },
     });
   }
 
   async purchase(userId: string, shopItemId: string) {
     const item = await this.prisma.shopItem.findUnique({ where: { id: shopItemId } });
-    if (!item || !item.active) {
+    if (!item || !item.active || REMOVED_SHOP_ITEMS.includes(item.name)) {
       throw new NotFoundException({ code: 'ITEM_NOT_FOUND', message: 'Предмет не найден' });
     }
 

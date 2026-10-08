@@ -13,6 +13,7 @@ import { Check, Compass, Gem, MapPin, Package, ShoppingBag, Sparkles, Tent } fro
 interface ShopItem { id: string; name: string; category: string; priceCoins: number | null; priceCrystals: number | null; rarity: string; assetUrl?: string | null }
 interface PendingPurchase { title: string; description: string; amount: number; currency: 'coins' | 'crystals'; busyId: string; confirm: () => Promise<void> }
 const PERMANENT_ITEMS = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
+const REMOVED_SHOP_ITEMS = new Set(['Тёплая куртка "Урал"', 'Рюкзак "Следопыт"', 'Ушанка "Легенда Урала"', 'Питомец: Уральский лис']);
 const CAMP_THEMES = [
   { id: 'zyuratkul', name: 'Зюраткуль', image: 'zyuratkul.png' },
   { id: 'nurgush', name: 'Нургуш', image: 'nurgush.png' },
@@ -35,6 +36,7 @@ export function ShopPanel() {
   const [activeSection, setActiveSection] = useState<ShopSection>('upgrades');
   const queryClient = useQueryClient();
   const { data: items = [], isLoading: itemsLoading, isError: itemsError } = useQuery<ShopItem[]>({ queryKey: ['shop', 'items'], queryFn: () => api.get<ShopItem[]>('/shop/items') });
+  const visibleItems = items.filter((item) => !REMOVED_SHOP_ITEMS.has(item.name));
   const { data: inventory = [] } = useQuery<{ shopItem: { name: string } }[]>({ queryKey: ['inventory'], queryFn: () => api.get('/inventory') });
   const { data: upgrades, isLoading: upgradesLoading } = useQuery<{ glassesLevel: number; glassesRangeM: number; glovesLevel: number; glovesBonusM: number; items: { kind: 'glasses' | 'gloves'; level: number; meters: number; price: number; image: string }[] }>({ queryKey: ['game', 'shop-upgrades'], queryFn: () => api.get('/game/shop-upgrades') });
   const { data: magnet } = useQuery<{ owned: boolean; level: number; cooldownMinutes: number; nextUpgrade: null | { level: number; cooldownMinutes: number; priceCoins: number } }>({ queryKey: ['crystals', 'magnet-status'], queryFn: () => api.get('/crystals/magnet/status') });
@@ -163,7 +165,7 @@ export function ShopPanel() {
     </section>}
 
     {activeSection === 'gear' && <section aria-label="Предметы магазина">
-      {itemsLoading ? <p role="status" className="adventure-card rounded-2xl p-3 text-sm text-parchment/80">Собираем снаряжение…</p> : itemsError ? <div role="alert" className="adventure-card rounded-2xl p-3 text-sm text-parchment">Не удалось загрузить снаряжение. Обновите страницу и попробуйте ещё раз.</div> : items.length === 0 ? <div className="adventure-card rounded-2xl p-6 text-center"><Package size={24} className="mx-auto mb-2 text-brass" aria-hidden="true" /><p className="text-sm text-parchment">Пока нет предметов в продаже.</p></div> : <div className="grid grid-cols-2 gap-3">{items.map((item) => {
+      {itemsLoading ? <p role="status" className="adventure-card rounded-2xl p-3 text-sm text-parchment/80">Собираем снаряжение…</p> : itemsError ? <div role="alert" className="adventure-card rounded-2xl p-3 text-sm text-parchment">Не удалось загрузить снаряжение. Обновите страницу и попробуйте ещё раз.</div> : visibleItems.length === 0 ? <div className="adventure-card rounded-2xl p-6 text-center"><Package size={24} className="mx-auto mb-2 text-brass" aria-hidden="true" /><p className="text-sm text-parchment">Пока нет предметов в продаже.</p></div> : <div className="grid grid-cols-2 gap-3">{visibleItems.map((item) => {
         const owned = PERMANENT_ITEMS.has(item.name) && inventory.some((entry) => entry.shopItem.name === item.name);
         const amount = item.priceCoins ?? item.priceCrystals ?? 0;
         const currency = item.priceCoins != null ? 'coins' as const : 'crystals' as const;
@@ -171,8 +173,7 @@ export function ShopPanel() {
         return <article key={item.id} className="adventure-card flex min-w-0 flex-col rounded-2xl p-3">
           <div className="mb-3 flex aspect-square max-h-36 items-center justify-center overflow-hidden rounded-xl border border-brass/20 bg-black/20">{item.assetUrl ? <img src={item.assetUrl} alt={item.name} className="h-full w-full object-contain p-3" /> : <Package size={35} className="text-brass/80" aria-hidden="true" />}</div>
           <p className="mb-1 min-h-10 text-sm font-semibold leading-snug text-parchment">{item.name}</p><p className="mb-2 text-xs text-parchment/70">{category}</p>
-          <p className="mb-3 mt-auto flex min-h-8 items-center text-xs font-semibold text-amber-light"><CurrencyAmount amount={amount} currency={currency} /></p>
-          <button onClick={() => confirmBeforePurchase({ title: item.name, description: 'Подтвердите покупку этого предмета.', amount, currency, busyId: item.id, confirm: () => buy(item) })} disabled={!!buyingId || owned} className="shop-buy-button">{owned ? <><Check size={15} aria-hidden="true" />Уже есть</> : <><CurrencyAmount amount={amount} currency={currency} /> · Купить</>}</button>
+          <button onClick={() => confirmBeforePurchase({ title: item.name, description: 'Подтвердите покупку этого предмета.', amount, currency, busyId: item.id, confirm: () => buy(item) })} disabled={!!buyingId || owned} className="shop-buy-button mt-auto">{owned ? <><Check size={15} aria-hidden="true" />Уже есть</> : <><CurrencyAmount amount={amount} currency={currency} /> · Купить</>}</button>
         </article>;
       })}</div>}
     </section>}

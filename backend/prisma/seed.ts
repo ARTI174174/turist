@@ -117,10 +117,6 @@ async function main() {
   // по чанкам, когда игрок оказывается рядом (см. CrystalsService).
 
   const shopItems = [
-    { name: 'Тёплая куртка "Урал"', category: 'clothing', priceCoins: 3000, rarity: 'common' },
-    { name: 'Рюкзак "Следопыт"', category: 'backpack', priceCoins: 4500, rarity: 'common' },
-    { name: 'Ушанка "Легенда Урала"', category: 'headwear', priceCoins: 12000, rarity: 'rare' },
-    { name: 'Питомец: Уральский лис', category: 'pet', priceCrystals: 500, rarity: 'epic' },
     { name: 'Магнит следопыта', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/magnet.png' },
     { name: 'Фонарь путешественника', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/flashlight.png' },
     { name: 'Компас искателя', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/compass.png' },
