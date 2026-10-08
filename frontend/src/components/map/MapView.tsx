@@ -89,7 +89,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       zoom: DEFAULT_ZOOM,
       minZoom: 7,
       maxBounds: CHELYABINSK_BOUNDS,
-      attributionControl: { compact: true },
+      attributionControl: { compact: true, customAttribution: 'Граница области: © OpenStreetMap contributors' },
     });
 
     mapRef.current = map;
@@ -104,6 +104,20 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     map.once('style.load', () => {
       const style = map.getStyle();
       if (!style?.layers) return;
+
+      const boundarySource = 'chelyabinsk-oblast-boundary';
+      const boundaryCasing = 'chelyabinsk-oblast-boundary-casing';
+      const boundaryLine = 'chelyabinsk-oblast-boundary-line';
+      const settlementLabels = style.layers.find((layer) => layer.type === 'symbol' && (/place|settlement/i.test(layer.id) || ('source-layer' in layer && layer['source-layer'] === 'place')) && layer.layout?.['text-field']);
+      map.addSource(boundarySource, { type: 'geojson', data: '/data/chelyabinsk-oblast.geojson' });
+      map.addLayer({ id: boundaryCasing, type: 'line', source: boundarySource, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+        'line-color': '#172318', 'line-opacity': 0.88,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 4, 11, 6, 14, 8],
+      } }, settlementLabels?.id);
+      map.addLayer({ id: boundaryLine, type: 'line', source: boundarySource, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+        'line-color': '#d77837', 'line-opacity': 0.98,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 11, 3.5, 14, 4.5],
+      } }, settlementLabels?.id);
 
       for (const layer of style.layers) {
         if (layer.type !== 'symbol') continue;

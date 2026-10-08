@@ -119,21 +119,19 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
       setReward(res);
       if (res.status === 'verified') {
         setFlow('success');
-        const milestoneXp = (res.newMilestones ?? []).reduce((sum, m) => sum + m.reward, 0);
-        const milestoneCrystals = (res.newMilestones ?? []).reduce((sum, m) => sum + m.crystalReward, 0);
         const milestoneNames = (res.newMilestones ?? []).map((milestone) => `веха «${milestone.count} мест»`);
         announceAchievement({
-          title: milestoneNames.length ? 'Новая точка и достижение!' : 'Точка исследована!',
-          description: milestoneNames.length ? `${poi.title}. Получено достижение: ${milestoneNames.join(', ')}.` : `Ты открыл место «${poi.title}».`,
-          reward: `+${res.xpAwarded ?? 0} опыта · +${res.coinsAwarded ?? 0} золота${(res.crystalsAwarded ?? 0) + milestoneCrystals > 0 ? ` · +${(res.crystalsAwarded ?? 0) + milestoneCrystals} 💎` : ''}`,
+          title: milestoneNames.length ? 'Новая точка и награда!' : 'Точка исследована!',
+          description: milestoneNames.length ? `${poi.title}. В заданиях доступна награда: ${milestoneNames.join(', ')}.` : `Ты открыл место «${poi.title}».`,
+          reward: `+${res.xpAwarded ?? 0} опыта · +${res.coinsAwarded ?? 0} золота${(res.crystalsAwarded ?? 0) > 0 ? ` · +${res.crystalsAwarded} 💎` : ''}`,
         });
         if (user) {
           updateUser({
-            progress: { xp: user.progress.xp + (res.xpAwarded ?? 0) + milestoneXp, rankCode: user.progress.rankCode },
+            progress: { xp: user.progress.xp + (res.xpAwarded ?? 0), rankCode: user.progress.rankCode },
             wallet: {
               ...user.wallet,
               coinsBalance: user.wallet.coinsBalance + (res.coinsAwarded ?? 0),
-              crystalsBalance: user.wallet.crystalsBalance + milestoneCrystals + (res.crystalsAwarded ?? 0),
+              crystalsBalance: user.wallet.crystalsBalance + (res.crystalsAwarded ?? 0),
             },
           });
         }

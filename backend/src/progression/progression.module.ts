@@ -34,6 +34,11 @@ class QuestsController {
   getMilestones(@CurrentUser() user: CurrentUserPayload) {
     return this.progressionService.getVisitMilestonesStatus(user.userId);
   }
+
+  @Post('milestones/:count/claim')
+  claimMilestone(@CurrentUser() user: CurrentUserPayload, @Param('count') count: string) {
+    return this.progressionService.claimVisitMilestone(user.userId, Number(count));
+  }
 }
 
 @Module({

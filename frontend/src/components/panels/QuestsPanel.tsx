@@ -1,47 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, MapPinned } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { Modal } from '@/components/ui/Modal';
 import { CategoryQuests } from './CategoryQuests';
 
-interface Milestone { count: number; reward: number; crystalReward: number; claimed: boolean; progress: number }
-
 export function QuestsPanel() {
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const { data: milestones = [] } = useQuery<Milestone[]>({
-    queryKey: ['quests', 'milestones'],
-    queryFn: () => api.get<Milestone[]>('/quests/milestones'),
-  });
   return (
     <>
       <CategoryQuests />
-      <details className="adventure-card rounded-2xl p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm text-parchment">Другие достижения</summary>
-      <div className="space-y-3">
-        {milestones.map((m) => <MilestoneCard key={m.count} milestone={m} />)}
-        {milestones.length === 0 && <p className="text-sm text-stone">Загрузка заданий…</p>}
-      </div>
-      </details>
       <button onClick={() => setSuggestOpen(true)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-forest/40 py-3 font-display text-sm text-forest">
         <MapPinned size={18} /> Предложить точку
       </button>
       {suggestOpen && <SuggestPointModal onClose={() => setSuggestOpen(false)} />}
     </>
   );
-}
-
-function MilestoneCard({ milestone: m }: { milestone: Milestone }) {
-  const pct = Math.min(100, Math.round((m.progress / m.count) * 100));
-  return <div className="rounded-2xl bg-white/50 p-4">
-    <div className="mb-2 flex items-center justify-between"><span className="font-display text-sm text-ink">Посетить {m.count} мест</span>
-      {m.claimed ? <CheckCircle2 size={18} className="text-forest" /> : <span className="font-mono text-xs text-amber-dark">+{m.reward} баллов · +{m.crystalReward} 💎</span>}
-    </div>
-    <div className="h-2 w-full overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-amber transition-all" style={{ width: `${m.claimed ? 100 : pct}%` }} /></div>
-    <p className="mt-1 font-mono text-[11px] text-stone">{m.progress}/{m.count}</p>
-  </div>;
 }
 
 function SuggestPointModal({ onClose }: { onClose: () => void }) {

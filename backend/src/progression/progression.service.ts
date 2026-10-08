@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 // ============================================================
@@ -82,11 +83,7 @@ export class ProgressionService {
     };
   }
 
-  /**
-   * Проверяет, пересёк ли игрок новую веху по количеству посещённых мест,
-   * и если да — начисляет разовую награду и запоминает, что она уже выдана
-   * (SRS: экран «Задания», список «Посетить N мест»).
-   */
+  /** Возвращает открывшиеся вехи. Награду игрок забирает отдельно в задании. */
   async checkVisitMilestones(userId: string, totalVisits: number) {
     const progress = await this.prisma.userProgress.upsert({
       where: { userId },
@@ -95,37 +92,29 @@ export class ProgressionService {
     });
 
     const claimed = new Set(progress.visitMilestonesClaimed);
-    const newlyClaimed: { count: number; reward: number; crystalReward: number }[] = [];
+    return VISIT_MILESTONES.filter((milestone) => totalVisits >= milestone.count && totalVisits - 1 < milestone.count && !claimed.has(milestone.count));
+  }
 
-    for (const milestone of VISIT_MILESTONES) {
-      if (totalVisits >= milestone.count && !claimed.has(milestone.count)) {
-        claimed.add(milestone.count);
-        newlyClaimed.push(milestone);
-      }
-    }
-
-    if (newlyClaimed.length > 0) {
-      const totalReward = newlyClaimed.reduce((sum, m) => sum + m.reward, 0);
-      const totalCrystals = newlyClaimed.reduce((sum, m) => sum + m.crystalReward, 0);
-
-      await this.prisma.userProgress.update({
+  async claimVisitMilestone(userId: string, count: number) {
+    const milestone = VISIT_MILESTONES.find((item) => item.count === count);
+    if (!milestone) throw new BadRequestException('Такого задания нет.');
+    return this.prisma.$transaction(async (tx) => {
+      const progress = await tx.userProgress.upsert({ where: { userId }, update: {}, create: { userId } });
+      const visits = await tx.visit.count({ where: { userId } });
+      if (visits < milestone.count) throw new BadRequestException('Сначала исследуйте нужное количество мест.');
+      if (progress.visitMilestonesClaimed.includes(milestone.count)) throw new BadRequestException('Награда уже получена.');
+      const updatedProgress = await tx.userProgress.update({
         where: { userId },
-        data: {
-          xp: { increment: totalReward },
-          visitMilestonesClaimed: Array.from(claimed),
-        },
+        data: { xp: { increment: milestone.reward }, visitMilestonesClaimed: { push: milestone.count } },
+        select: { xp: true },
       });
-
-      if (totalCrystals > 0) {
-        await this.prisma.wallet.upsert({
-          where: { userId },
-          update: { crystalsBalance: { increment: totalCrystals } },
-          create: { userId, crystalsBalance: totalCrystals },
-        });
-      }
-    }
-
-    return newlyClaimed;
+      const wallet = await tx.wallet.upsert({
+        where: { userId }, update: { crystalsBalance: { increment: milestone.crystalReward } },
+        create: { userId, crystalsBalance: milestone.crystalReward },
+      });
+      if (milestone.crystalReward > 0) await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'visit_milestone', amount: milestone.crystalReward, currency: 'crystals', metadata: { count: milestone.count } } });
+      return { count: milestone.count, xp: updatedProgress.xp, reward: milestone.reward, crystalReward: milestone.crystalReward, wallet: { crystalsBalance: wallet.crystalsBalance } };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   async getVisitMilestonesStatus(userId: string) {
