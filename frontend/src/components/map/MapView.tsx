@@ -233,7 +233,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       el.setAttribute('aria-label', 'Кристалл');
       el.style.width = '36px';
       el.style.height = '36px';
-      el.style.backgroundImage = "url('/assets/icons/diamond.png')";
+      el.style.backgroundImage = "url('/assets/icons/diamond.png?v=2')";
       el.style.backgroundSize = 'contain';
       el.style.backgroundRepeat = 'no-repeat';
       el.style.backgroundPosition = 'center';

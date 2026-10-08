@@ -14,6 +14,13 @@ interface ShopItem { id: string; name: string; category: string; priceCoins: num
 interface PendingPurchase { title: string; description: string; amount: number; currency: 'coins' | 'crystals'; busyId: string; confirm: () => Promise<void> }
 const PERMANENT_ITEMS = new Set(['Магнит следопыта', 'Фонарь путешественника', 'Компас искателя', 'Палатка уральская', 'Флаг путешественника']);
 const REMOVED_SHOP_ITEMS = new Set(['Тёплая куртка "Урал"', 'Рюкзак "Следопыт"', 'Ушанка "Легенда Урала"', 'Питомец: Уральский лис']);
+const SHOP_ITEM_ASSETS: Record<string, string> = {
+  'Магнит следопыта': '/assets/shop/magnet.png?v=2',
+  'Фонарь путешественника': '/assets/shop/flashlight.png?v=2',
+  'Компас искателя': '/assets/shop/compass.png?v=2',
+  'Палатка уральская': '/assets/shop/tent.png?v=2',
+  'Флаг путешественника': '/assets/shop/flag.png?v=2',
+};
 const CAMP_THEMES = [
   { id: 'zyuratkul', name: 'Зюраткуль', image: 'zyuratkul.png' },
   { id: 'nurgush', name: 'Нургуш', image: 'nurgush.png' },
@@ -144,7 +151,7 @@ export function ShopPanel() {
           const description = kind === 'glasses' ? `Находки видны в радиусе ${currentValue >= 1000 ? `${currentValue / 1000} км` : `${currentValue} м`}.` : `Точки открываются ещё на ${currentValue} м дальше.`;
           const next = upgrades.items.find((item) => item.kind === kind && item.level === currentLevel + 1);
           return <section key={kind} className="adventure-card rounded-2xl p-3">
-            <div className="flex items-center gap-3"><span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl border border-brass/25 bg-black/20"><img src={kind === 'glasses' ? '/assets/shop/glasses.png' : '/assets/shop/gloves.png'} alt="" className="h-14 w-14 object-contain" /></span><div className="min-w-0"><h2 className="font-display text-base text-parchment">{title}</h2><p className="mt-1 text-sm leading-relaxed text-parchment/75">{description}</p></div></div>
+            <div className="flex items-center gap-3"><span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl border border-brass/25 bg-black/20"><img src={kind === 'glasses' ? '/assets/shop/glasses.png?v=2' : '/assets/shop/gloves.png?v=2'} alt="" className="h-14 w-14 object-contain" /></span><div className="min-w-0"><h2 className="font-display text-base text-parchment">{title}</h2><p className="mt-1 text-sm leading-relaxed text-parchment/75">{description}</p></div></div>
             {next ? <button onClick={() => confirmBeforePurchase({ title: `${title}: улучшение`, description: `Улучшить до ${kind === 'glasses' ? `${next.meters / 1000} км` : `+${next.meters} м`}.`, amount: next.price, currency: 'coins', busyId: `${kind}-${next.level}`, confirm: () => buyUpgrade(kind, next.level, next.price) })} disabled={!!buyingId} className="shop-buy-button mt-3">Улучшить · <CurrencyAmount amount={next.price} currency="coins" /></button> : <p className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-brass/25 bg-black/15 py-3 text-sm text-amber-light"><Check size={16} aria-hidden="true" />Максимальный уровень открыт</p>}
           </section>;
         })}
@@ -170,8 +177,9 @@ export function ShopPanel() {
         const amount = item.priceCoins ?? item.priceCrystals ?? 0;
         const currency = item.priceCoins != null ? 'coins' as const : 'crystals' as const;
         const category = ({ clothing: 'Одежда', backpack: 'Рюкзаки', headwear: 'Головные уборы', pet: 'Спутники', equipment: 'Снаряжение', camp: 'Для лагеря' } as Record<string, string>)[item.category] ?? 'Для путешествия';
+        const assetUrl = SHOP_ITEM_ASSETS[item.name] ?? item.assetUrl;
         return <article key={item.id} className="adventure-card flex min-w-0 flex-col rounded-2xl p-3">
-          <div className="mb-3 flex aspect-square max-h-36 items-center justify-center overflow-hidden rounded-xl border border-brass/20 bg-black/20">{item.assetUrl ? <img src={item.assetUrl} alt={item.name} className="h-full w-full object-contain p-3" /> : <Package size={35} className="text-brass/80" aria-hidden="true" />}</div>
+          <div className="mb-3 flex aspect-square max-h-36 items-center justify-center overflow-hidden rounded-xl border border-brass/20 bg-black/20">{assetUrl ? <img src={assetUrl} alt={item.name} className="h-full w-full object-contain p-3" /> : <Package size={35} className="text-brass/80" aria-hidden="true" />}</div>
           <p className="mb-1 min-h-10 text-sm font-semibold leading-snug text-parchment">{item.name}</p><p className="mb-2 text-xs text-parchment/70">{category}</p>
           <button onClick={() => confirmBeforePurchase({ title: item.name, description: 'Подтвердите покупку этого предмета.', amount, currency, busyId: item.id, confirm: () => buy(item) })} disabled={!!buyingId || owned} className="shop-buy-button mt-auto">{owned ? <><Check size={15} aria-hidden="true" />Уже есть</> : <><CurrencyAmount amount={amount} currency={currency} /> · Купить</>}</button>
         </article>;

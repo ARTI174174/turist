@@ -121,7 +121,7 @@ async function main() {
     { name: 'Фонарь путешественника', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/flashlight.png' },
     { name: 'Компас искателя', category: 'equipment', priceCoins: 10000, rarity: 'rare', assetUrl: '/assets/shop/compass.png' },
     { name: 'Палатка уральская', category: 'camp', priceCoins: 10000, rarity: 'common', assetUrl: '/assets/shop/tent.png' },
-    { name: 'Флаг путешественника', category: 'camp', priceCoins: 5000, rarity: 'common' },
+    { name: 'Флаг путешественника', category: 'camp', priceCoins: 5000, rarity: 'common', assetUrl: '/assets/shop/flag.png?v=2' },
   ];
 
   for (const item of shopItems) {

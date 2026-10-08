@@ -146,7 +146,7 @@ export default function MapPage() {
       {crystalMsg && (
         <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}>
           <p className="flex items-center gap-1 rounded-full bg-forest px-4 py-2 text-center text-xs text-parchment shadow-lg">
-            <img src="/assets/icons/diamond.png" alt="" className="h-4 w-4" /> {crystalMsg}
+            <img src="/assets/icons/diamond.png?v=2" alt="" className="h-4 w-4" /> {crystalMsg}
           </p>
         </div>
       )}

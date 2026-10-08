@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Compass, Medal, Sparkles } from 'lucide-react';
+import { Compass, Sparkles } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { Poi } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -67,7 +67,7 @@ export function TravelActivities() {
           <div className="mt-2 flex gap-1" aria-label={`${stage.completed} из ${stage.target}`}>{Array.from({ length: stage.target }, (_, i) => <span key={i} className={`h-1.5 flex-1 rounded-full ${i < stage.completed ? 'bg-moss-light' : 'bg-parchment/15'}`} />)}</div>
           {stage.locked ? <p className="mt-2 text-xs text-parchment/60">Откроется после предыдущего этапа</p> : stage.point ? <button onClick={() => openPoint(stage.point!)} className="mt-2 flex min-h-11 w-full items-center justify-between gap-2 text-left text-xs text-brass"><span>{stage.point.title}</span><span aria-hidden="true">→</span></button> : <p className="mt-2 text-xs text-moss-light">Все 7 мест исследованы ✓</p>}
         </div>)}</div>
-        {expedition.claimed ? <p className="mt-2 flex items-center gap-1 text-xs text-brass"><Medal size={15} /> Медаль получена: {expedition.medal}</p> : expedition.readyToClaim && <button onClick={() => void claimExpedition()} disabled={busy} className="mt-3 w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{busy ? 'Засчитываем…' : 'Получить награду'}</button>}
+        {expedition.claimed ? <p className="mt-2 flex items-center gap-1 text-xs text-brass"><img src="/assets/icons/medal-expedition.png" alt="" className="h-6 w-6 shrink-0 object-contain" /> Медаль получена: {expedition.medal}</p> : expedition.readyToClaim && <button onClick={() => void claimExpedition()} disabled={busy} className="mt-3 w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{busy ? 'Засчитываем…' : 'Получить награду'}</button>}
       </> : <p className="text-xs text-parchment/60">{expedition?.message ?? 'Маршрут готовится. Загляни сюда позже.'}</p>}
     </div>
 

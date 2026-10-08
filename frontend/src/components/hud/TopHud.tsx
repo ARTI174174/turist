@@ -53,7 +53,7 @@ export function TopHud({ showNotifications = true }: { showNotifications?: boole
             <span className="font-mono text-xs text-parchment">{user.wallet?.coinsBalance ?? 0}</span>
           </div>
           <div className="hud-panel flex items-center gap-1 rounded-full px-2 py-1.5 shadow-lg backdrop-blur">
-            <img src="/assets/icons/diamond.png" alt="" className="h-4 w-4" />
+            <img src="/assets/icons/diamond.png?v=2" alt="" className="h-4 w-4" />
             <span className="font-mono text-xs text-parchment">{user.wallet?.crystalsBalance ?? 0}</span>
           </div>
           {showNotifications && <button
