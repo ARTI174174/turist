@@ -81,8 +81,8 @@ export function CampYard() {
 
   return <>
     <div aria-label="Предметы лагеря" className="pointer-events-none absolute inset-0 z-[5]">
-      {renderObject('tent', 'Палатка', <TentTree size={12} />, { left: '50%', top: '31%', width: '49%', height: '50%' })}
-      {renderObject('hearth', 'Костёр', <Flame size={12} />, { left: '20%', top: '61%', width: '29%', height: '23%' })}
+      {renderObject('tent', 'Палатка', <TentTree size={12} />, { left: '50%', top: '25%', width: '49%', height: '50%' })}
+      {renderObject('hearth', 'Костёр', <Flame size={12} />, { left: '31%', top: '57%', width: '29%', height: '23%' })}
       {renderObject('backpack', 'Рюкзак', <Backpack size={12} />, { left: '2%', top: '72%', width: '16%', height: '17%' })}
     </div>
     {selected && data && (() => {
