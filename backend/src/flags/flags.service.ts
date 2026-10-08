@@ -2,8 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 
-const PALETTE = ['#E74C3C', '#E67E22', '#F1C40F', '#2ECC71', '#1ABC9C', '#3498DB', '#3F51B5', '#9B59B6', '#EC407A', '#F5F5F5'];
-type FlagShape = { type: 'circle'; x: number; y: number; r: number; color: string } | { type: 'line'; x1: number; y1: number; x2: number; y2: number; color: string };
+import { validateFlagDesign } from './flag-design';
 
 @Injectable()
 export class FlagsService {
@@ -21,14 +20,7 @@ export class FlagsService {
   }
   async saveDesign(userId: string, raw: unknown) {
     if (!(await this.ownsFlag(userId))) throw new ForbiddenException('Сначала купите флаг путешественника в магазине.');
-    if (!Array.isArray(raw) || raw.length > 12) throw new BadRequestException('Флаг может содержать до 12 фигур.');
-    const design = raw.map((entry: any): FlagShape => {
-      if (!entry || !PALETTE.includes(entry.color)) throw new BadRequestException('Выберите цвет из палитры флага.');
-      const coordinate = (value: unknown) => { const n = Number(value); if (!Number.isFinite(n) || n < 0 || n > 100) throw new BadRequestException('Координаты фигуры вне холста.'); return n; };
-      if (entry.type === 'circle') return { type: 'circle', x: coordinate(entry.x), y: coordinate(entry.y), r: Math.min(20, Math.max(2, coordinate(entry.r))), color: entry.color };
-      if (entry.type === 'line') return { type: 'line', x1: coordinate(entry.x1), y1: coordinate(entry.y1), x2: coordinate(entry.x2), y2: coordinate(entry.y2), color: entry.color };
-      throw new BadRequestException('Поддерживаются только круги и линии.');
-    });
+    const design = validateFlagDesign(raw);
     const user = await this.prisma.user.update({ where: { id: userId }, data: { flagDesign: design as Prisma.InputJsonValue }, select: { flagDesign: true } });
     return { success: true, design: user.flagDesign };
   }

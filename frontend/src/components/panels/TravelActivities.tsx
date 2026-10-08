@@ -11,7 +11,8 @@ import { usePlayerStore } from '@/store/usePlayerStore';
 import { Modal } from '@/components/ui/Modal';
 import { announceAchievement } from '@/lib/achievement-notice';
 
-interface Expedition { active: boolean; title: string; message?: string; stageIndex?: number; points?: (Poi & { completed: boolean; locked?: boolean })[]; readyToClaim?: boolean; claimed?: boolean; medal?: string }
+interface ExpeditionStage { category: string; title: string; target: number; completed: number; locked: boolean; point: Poi | null }
+interface Expedition { endsAt?: string; stages?: ExpeditionStage[]; active: boolean; title: string; message?: string; stageIndex?: number; points?: (Poi & { completed: boolean; locked?: boolean })[]; readyToClaim?: boolean; claimed?: boolean; medal?: string }
 interface Roulette { available: boolean; remaining: number; used: number; challenge: null | { id: string; spinIndex: number; status: string; expiresAt: string; poi: Poi | null; rewardCoins: number; rewardCrystals: number } }
 
 export function TravelActivities() {
@@ -23,7 +24,7 @@ export function TravelActivities() {
   const [confirmRoulette, setConfirmRoulette] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const { data: expedition } = useQuery<Expedition>({ queryKey: ['game', 'expedition'], queryFn: () => api.get('/game/expedition') });
+  const { data: expedition } = useQuery<Expedition>({ queryKey: ['game', 'expedition'], queryFn: () => api.get('/game/expedition'), refetchInterval: 60_000 });
   const { data: roulette } = useQuery<Roulette>({ queryKey: ['game', 'roulette'], queryFn: () => api.get('/game/roulette'), refetchInterval: 30_000 });
 
   async function claimExpedition() {
@@ -58,8 +59,14 @@ export function TravelActivities() {
     <div className="adventure-card rounded-2xl p-3">
       <div className="mb-2 flex items-center gap-2"><Compass size={18} className="text-brass" /><h2 className="font-display text-sm text-parchment">Великое путешествие</h2></div>
       {expedition?.active ? <>
-        <p className="mb-2 text-[11px] text-parchment/65">Посети семь точек по очереди, по одной на этап. Следующая откроется после предыдущей. Награда: медаль, 50 000 золота и 50 бриллиантов.</p>
-        <div className="space-y-1.5">{expedition.points?.map((point, index) => <button key={point.id} onClick={() => { if (!point.locked) openPoint(point); }} disabled={point.locked} className="flex w-full items-center gap-2 rounded-lg border border-brass/20 bg-black/15 px-2 py-1.5 text-left disabled:opacity-40"><span className="w-8 shrink-0 text-[10px] text-brass">{index + 1}/7</span><span className="flex-1 truncate text-xs text-parchment">{point.title}</span><span className={point.completed ? 'text-xs text-moss-light' : point.locked ? 'text-[10px] text-stone' : 'text-[10px] text-brass'}>{point.completed ? '✓ пройдено' : point.locked ? 'закрыто' : 'текущий этап →'}</span></button>)}</div>
+        <p className="mb-3 text-xs leading-relaxed text-parchment/70">Пройди по очереди 7 городов, 7 озёр и 7 гор. После каждого открытия здесь появится следующее место. Уже исследованные точки засчитываются автоматически.</p>
+        <p className="mb-3 text-[11px] text-brass">Награда: медаль, 50 000 золота и 50 бриллиантов. Новый маршрут — 1-го числа каждого месяца.</p>
+        {expedition.endsAt && <p className="mb-3 text-[10px] text-parchment/55">Этот маршрут доступен до {new Date(expedition.endsAt).toLocaleDateString('ru-RU', { timeZone: 'Asia/Yekaterinburg' })}, 00:00 по Екатеринбургу.</p>}
+        <div className="space-y-2">{expedition.stages?.map((stage, index) => <div key={stage.category} className={`rounded-xl border border-brass/25 bg-black/15 p-3 ${stage.locked ? 'opacity-50' : ''}`}>
+          <div className="flex items-center justify-between gap-2 text-sm"><span className="font-display text-parchment">{index + 1}. {stage.title}</span><span className="text-brass">{stage.completed}/{stage.target}</span></div>
+          <div className="mt-2 flex gap-1" aria-label={`${stage.completed} из ${stage.target}`}>{Array.from({ length: stage.target }, (_, i) => <span key={i} className={`h-1.5 flex-1 rounded-full ${i < stage.completed ? 'bg-moss-light' : 'bg-parchment/15'}`} />)}</div>
+          {stage.locked ? <p className="mt-2 text-xs text-parchment/60">Откроется после предыдущего этапа</p> : stage.point ? <button onClick={() => openPoint(stage.point!)} className="mt-2 flex min-h-11 w-full items-center justify-between gap-2 text-left text-xs text-brass"><span>{stage.point.title}</span><span aria-hidden="true">→</span></button> : <p className="mt-2 text-xs text-moss-light">Все 7 мест исследованы ✓</p>}
+        </div>)}</div>
         {expedition.claimed ? <p className="mt-2 flex items-center gap-1 text-xs text-brass"><Medal size={15} /> Медаль получена: {expedition.medal}</p> : expedition.readyToClaim && <button onClick={() => void claimExpedition()} disabled={busy} className="mt-3 w-full rounded-full bg-moss py-2 text-xs text-parchment disabled:opacity-50">{busy ? 'Засчитываем…' : 'Получить награду'}</button>}
       </> : <p className="text-xs text-parchment/60">{expedition?.message ?? 'Маршрут готовится. Загляни сюда позже.'}</p>}
     </div>

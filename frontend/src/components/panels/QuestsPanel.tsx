@@ -6,6 +6,7 @@ import { CheckCircle2, MapPinned } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { Modal } from '@/components/ui/Modal';
+import { CategoryQuests } from './CategoryQuests';
 
 interface Milestone { count: number; reward: number; crystalReward: number; claimed: boolean; progress: number }
 
@@ -17,11 +18,13 @@ export function QuestsPanel() {
   });
   return (
     <>
-      <p className="mb-4 text-sm text-stone">Посещай новые места и получай баллы за вехи</p>
+      <CategoryQuests />
+      <details className="adventure-card rounded-2xl p-3"><summary className="min-h-11 cursor-pointer py-2 text-sm text-parchment">Другие достижения</summary>
       <div className="space-y-3">
         {milestones.map((m) => <MilestoneCard key={m.count} milestone={m} />)}
         {milestones.length === 0 && <p className="text-sm text-stone">Загрузка заданий…</p>}
       </div>
+      </details>
       <button onClick={() => setSuggestOpen(true)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-forest/40 py-3 font-display text-sm text-forest">
         <MapPinned size={18} /> Предложить точку
       </button>

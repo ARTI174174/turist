@@ -60,6 +60,15 @@ export default function PassportPage() {
   const [showFilterLeftFade, setShowFilterLeftFade] = useState(false);
   const [showFilterRightFade, setShowFilterRightFade] = useState(false);
 
+  const { data: visits = [], isLoading: visitsLoading, isError: visitsError, refetch: refetchVisits } = useQuery<PassportVisit[]>({
+    queryKey: ['passport'],
+    queryFn: () => api.get<PassportVisit[]>('/visits/passport'),
+    enabled: !!user,
+  });
+  const { data: regionStats } = useQuery<{ visited: number; total: number; percent: number }>({
+    queryKey: ['game', 'camp-stats'], queryFn: () => api.get('/game/camp/stats'), enabled: !!user,
+  });
+
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
     const element = filterScrollRef.current;
@@ -77,16 +86,12 @@ export default function PassportPage() {
       element.removeEventListener('scroll', updateFades);
       observer.disconnect();
     };
-  }, [visits.length]);
+  }, [hydrated, user?.id, visits.length]);
   useEffect(() => {
     if (hydrated && !user) router.replace('/login');
   }, [hydrated, user, router]);
 
-  const { data: visits = [], isLoading: visitsLoading, isError: visitsError, refetch: refetchVisits } = useQuery<PassportVisit[]>({
-    queryKey: ['passport'],
-    queryFn: () => api.get<PassportVisit[]>('/visits/passport'),
-    enabled: !!user,
-  });
+
 
   if (!hydrated || !user) return null;
 
@@ -130,6 +135,11 @@ export default function PassportPage() {
             <div className="mb-1.5 flex justify-between text-xs"><span className="text-parchment/80">Опыт до следующего уровня</span><span className="font-semibold text-amber-light">{progress.nextThreshold == null ? 'Максимум' : `${xpInLevel.toLocaleString('ru-RU')} / ${xpForLevel?.toLocaleString('ru-RU')} XP`}</span></div>
             <div className="h-2 overflow-hidden rounded-full bg-black/35" role="progressbar" aria-label="Прогресс уровня" aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelPercent}><div className="h-full rounded-full bg-gradient-to-r from-moss-light to-brass transition-[width] duration-500" style={{ width: `${levelPercent}%` }} /></div>
           </div>
+          {regionStats && <div className="mt-3 rounded-xl border border-brass/25 bg-black/20 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2 text-xs"><span className="text-parchment/75">Челябинская область изучена</span><strong className="text-amber-light">{regionStats.percent.toLocaleString('ru-RU')}%</strong></div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/35" role="progressbar" aria-label="Исследование Челябинской области" aria-valuenow={regionStats.percent} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-brass transition-[width]" style={{ width: `${regionStats.percent}%` }} /></div>
+            <p className="mt-1.5 text-[10px] text-parchment/60">{regionStats.visited} из {regionStats.total} доступных мест</p>
+          </div>}
           <div className="mt-4 grid grid-cols-4 gap-2 border-t border-brass/20 pt-3">
             {filters.slice(1).map(({ id, label, icon: Icon }) => <div key={id} className="min-w-0 text-center"><Icon size={16} className="mx-auto mb-1 text-amber-light" aria-hidden="true" /><p className="truncate text-[10px] text-parchment/70">{label}</p><p className="font-display text-base text-parchment">{visitCounts[id]}</p></div>)}
           </div>

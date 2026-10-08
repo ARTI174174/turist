@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Map as MapLibreMap, Marker, setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Poi, Crystal } from '@/types';
+import { mountPoiLayers } from '@/lib/poi-map-layer';
 import { GeoPosition } from '@/hooks/useGeolocation';
 
 interface MapViewProps {
@@ -28,40 +29,6 @@ export interface MapViewHandle {
 const DEFAULT_CENTER: [number, number] = [61.4, 55.15];
 const DEFAULT_ZOOM = 8;
 const MAP_STYLE = 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-// Keep marker selection on the client as well as in the seed. This lets the
-// new art appear immediately even while an older API/database seed is live.
-const POI_MARKERS: Record<string, number> = {
-  city: 1,
-  township: 11,
-  trail: 10,
-  lake: 12,
-  mountain: 2,
-  river: 10,
-  spring: 7,
-  cave: 5,
-  rare: 13,
-  museum: 14,
-  historic: 14,
-  monument: 8,
-  park: 4,
-  secret: 6,
-  waterfall: 10,
-  village: 11,
-  abandoned: 3,
-};
-// При наложении точек важные категории остаются сверху и доступны для нажатия.
-const POI_MARKER_PRIORITY: Record<string, number> = {
-  // Keep marker z-indexes below the HUD (20), point card (30), and modal (40).
-  city: 19,
-  township: 19,
-  village: 19,
-  mountain: 18,
-  trail: 17,
-  museum: 16,
-  historic: 15,
-  lake: 14,
-  monument: 13,
-};
 const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
   [56.0, 50.5],
   [64.0, 56.8],
@@ -73,7 +40,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<Marker[]>([]);
   const crystalMarkersRef = useRef<Marker[]>([]);
   const userMarkerRef = useRef<Marker | null>(null);
   const userAvatarContainerRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +48,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const hasCenteredOnceRef = useRef(false);
   const tutorialFocusedPoiIdRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [markerError, setMarkerError] = useState(false);
+  const [markerRetry, setMarkerRetry] = useState(0);
 
   // Храним актуальные callback-и, чтобы обновление GPS/родителя не заставляло
   // заново пересоздавать все маркеры.
@@ -196,10 +164,8 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
     return () => {
       map.off('load', handleLoad);
-      markersRef.current.forEach((m) => m.remove());
       crystalMarkersRef.current.forEach((m) => m.remove());
       userMarkerRef.current?.remove();
-      markersRef.current = [];
       crystalMarkersRef.current = [];
       userMarkerRef.current = null;
       userAvatarContainerRef.current = null;
@@ -231,164 +197,9 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const markerViews: { button: HTMLButtonElement; art: HTMLDivElement; dot: HTMLSpanElement; fixedSize: boolean; label?: Marker }[] = [];
-    const updateMarkerZoom = () => {
-      const zoom = map.getZoom();
-      for (const view of markerViews) {
-        const phase = view.fixedSize ? 1 : Math.max(0, Math.min(1, (zoom - 8.5) / 4));
-        const scale = view.fixedSize ? 1 : 0.12 + phase * 0.88;
-        const dotSize = 9 + Math.max(0, Math.min(1, (zoom - 7) / 1.5)) * 2;
-        view.button.style.width = `${Math.max(dotSize, 46 * scale)}px`;
-        view.button.style.height = `${Math.max(dotSize, 56 * scale)}px`;
-        view.art.style.transform = `translateX(-50%) scale(${scale})`;
-        view.art.style.opacity = String(phase);
-        view.dot.style.width = `${dotSize}px`;
-        view.dot.style.height = `${dotSize}px`;
-        view.dot.style.opacity = String(1 - phase);
-        if (view.label) view.label.setOffset([0, -Math.round(56 * scale + 3)]);
-      }
-    };
-
-    for (const poi of pois) {
-        if (!Number.isFinite(poi.lat) || !Number.isFinite(poi.lng)) continue;
-        const settlement = ['city', 'township', 'village'].includes(poi.category?.code ?? '');
-        const fixedSize = settlement || poi.markerFixedSize === 1;
-
-        const el = document.createElement('button');
-        el.type = 'button';
-        el.setAttribute('aria-label', poi.title);
-        el.title = poi.title;
-        Object.assign(el.style, {
-          display: 'block',
-          width: '6px',
-          height: '6px',
-          padding: '0',
-          border: '0',
-          borderRadius: '0',
-          background: 'transparent',
-          boxShadow: 'none',
-          cursor: 'pointer',
-          zIndex: String(POI_MARKER_PRIORITY[poi.category?.code ?? ''] ?? 10),
-          overflow: 'visible',
-        });
-        const markerArt = document.createElement('div');
-        // MapLibre controls the outer marker's transform for geographic
-        // positioning, so scale the artwork on an inner element instead.
-        Object.assign(markerArt.style, {
-          width: '46px',
-          height: '56px',
-          position: 'absolute',
-          left: '50%',
-          bottom: '0',
-          transform: 'translateX(-50%) scale(.12)',
-          transformOrigin: 'bottom center',
-          opacity: '0',
-          transition: 'transform 450ms cubic-bezier(.2,.75,.25,1), opacity 350ms ease',
-        });
-        const dot = document.createElement('span');
-        Object.assign(dot.style, {
-          position: 'absolute',
-          left: '50%',
-          bottom: '0',
-          width: '9px',
-          height: '9px',
-          transform: 'translateX(-50%)',
-          borderRadius: '50%',
-          background: '#ff941f',
-          border: '1px solid rgba(255,248,225,.95)',
-          boxShadow: '0 1px 4px rgba(20,25,17,.8)',
-          opacity: '1',
-          transition: 'width 300ms ease, height 300ms ease, opacity 350ms ease',
-          pointerEvents: 'none',
-        });
-        const categoryCode = poi.category?.code;
-        const markerNumber = poi.visibility === 'secret' ? POI_MARKERS.secret
-          : categoryCode ? POI_MARKERS[categoryCode] : undefined;
-        const markerAsset = markerNumber
-          ? `/assets/poi-markers/${markerNumber}.png`
-          : poi.markerAsset || poi.category?.iconAsset;
-        if (markerAsset) {
-          const image = document.createElement('img');
-          image.src = `${markerAsset}${markerAsset.includes('?') ? '&' : '?'}v=4`;
-          image.alt = '';
-          image.draggable = false;
-          if (tutorialFocusPoi?.id === poi.id) image.className = 'tutorial-poi-breathe';
-          Object.assign(image.style, {
-            display: 'block',
-            width: '100%',
-            height: '100%',
-            objectFit: 'fill',
-            pointerEvents: 'none',
-          });
-          markerArt.appendChild(image);
-        }
-        if (poi.flag) {
-          const badge = document.createElement('div');
-          badge.title = `Флаг игрока ${poi.flag.user.nickname}`;
-          Object.assign(badge.style, { position: 'absolute', top: '-7px', right: '-5px', width: '25px', height: '27px', borderRadius: '7px', background: 'rgba(10,15,10,.88)', border: '1px solid rgba(219,190,118,.8)', boxShadow: '0 2px 5px #0008' });
-          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
-          const pole = document.createElementNS(svg.namespaceURI, 'line');
-          pole.setAttribute('x1', '20'); pole.setAttribute('y1', '12'); pole.setAttribute('x2', '20'); pole.setAttribute('y2', '94'); pole.setAttribute('stroke', '#f5e8c8'); pole.setAttribute('stroke-width', '7'); svg.appendChild(pole);
-          const design = Array.isArray(poi.flag.design) ? poi.flag.design as Record<string, number | string>[] : [];
-          for (const part of design) {
-            const shape = document.createElementNS(svg.namespaceURI, part.type === 'line' ? 'line' : 'circle');
-            if (part.type === 'line') { shape.setAttribute('x1', String(part.x1)); shape.setAttribute('y1', String(part.y1)); shape.setAttribute('x2', String(part.x2)); shape.setAttribute('y2', String(part.y2)); shape.setAttribute('stroke', String(part.color)); shape.setAttribute('stroke-width', '6'); }
-            else { shape.setAttribute('cx', String(part.x)); shape.setAttribute('cy', String(part.y)); shape.setAttribute('r', String(part.r)); shape.setAttribute('fill', String(part.color)); }
-            svg.appendChild(shape);
-          }
-          if (!design.length) {
-            const flagShape = document.createElementNS(svg.namespaceURI, 'path');
-            flagShape.setAttribute('d', 'M23 12 H88 L70 38 L88 62 H23 Z'); flagShape.setAttribute('fill', '#E74C3C'); svg.appendChild(flagShape);
-          }
-          badge.appendChild(svg); markerArt.appendChild(badge);
-        }
-        el.appendChild(markerArt);
-        el.appendChild(dot);
-
-        const marker = new Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([poi.lng, poi.lat])
-          .addTo(map);
-
-        // Basemap labels live inside the map canvas, underneath HTML markers.
-        // Add a foreground label for settlements so their names remain legible
-        // even when other point markers overlap them.
-        if (settlement) {
-          const label = document.createElement('span');
-          label.textContent = poi.title;
-          Object.assign(label.style, {
-            display: 'block',
-            whiteSpace: 'nowrap',
-            color: '#244638',
-            font: '700 13px/1.2 system-ui, sans-serif',
-            textShadow: '-1px -1px 0 #f2ead7, 1px -1px 0 #f2ead7, -1px 1px 0 #f2ead7, 1px 1px 0 #f2ead7, 0 1px 4px #f2ead7',
-            pointerEvents: 'none',
-            zIndex: '19',
-          });
-          const labelMarker = new Marker({ element: label, anchor: 'bottom', offset: [0, -9] })
-            .setLngLat([poi.lng, poi.lat])
-            .addTo(map);
-          markersRef.current.push(labelMarker);
-          markerViews.push({ button: el, art: markerArt, dot, fixedSize, label: labelMarker });
-        } else {
-          markerViews.push({ button: el, art: markerArt, dot, fixedSize });
-        }
-
-        el.addEventListener('click', () => {
-          map.flyTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 12), duration: 650 });
-          onSelectPoiRef.current(poi);
-        });
-        markersRef.current.push(marker);
-    }
-
-    updateMarkerZoom();
-    map.on('zoomend', updateMarkerZoom);
-    return () => {
-      map.off('zoomend', updateMarkerZoom);
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-    };
-  }, [pois, mapReady, tutorialFocusPoi?.id]);
+    setMarkerError(false);
+    return mountPoiLayers(map, pois, tutorialFocusPoi?.id, (poi) => onSelectPoiRef.current(poi), () => setMarkerError(true));
+  }, [pois, mapReady, tutorialFocusPoi?.id, markerRetry]);
 
   // Кристаллы.
   useEffect(() => {
@@ -522,5 +333,5 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     }
   }, [position, mapReady, userAvatar, selectedPoi]);
 
-  return <div ref={containerRef} className="map-viewport" />;
+  return <><div ref={containerRef} className="map-viewport" />{markerError && <button onClick={() => setMarkerRetry((retry) => retry + 1)} className="absolute inset-x-4 top-48 z-20 rounded-xl bg-panel p-3 text-xs text-parchment">Не удалось загрузить метки. Нажми, чтобы повторить.</button>}</>;
 });

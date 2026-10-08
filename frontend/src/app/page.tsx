@@ -8,13 +8,11 @@ import { QuestsShopLauncher } from '@/components/hud/QuestsShopLauncher';
 import { BottomNav } from '@/components/nav/BottomNav';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MedalsChestButton } from '@/components/game/MedalsChestButton';
-import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { FlagStudio } from '@/components/game/FlagStudio';
 import { Modal } from '@/components/ui/Modal';
 import { ApiError } from '@/lib/api';
 
-interface CampStats { visited: number; total: number; percent: number; mountains: number; lakes: number; historic: number; cities: number }
 
 // Экран «Лагерь» — стартовый экран после запуска приложения: атмосферный
 // фон с костром + зацикленная фоновая музыка. Дальше сюда добавится
@@ -36,7 +34,6 @@ export default function CampPage() {
     ural: { name: 'Урал', image: '/assets/camp/locations/ural.jpg' },
   };
   const camp = camps[user?.campThemeId ?? ''] ?? { name: 'Лагерь', image: '/assets/camp/camp-bg.jpg' };
-  const { data: campStats } = useQuery<CampStats>({ queryKey: ['game', 'camp-stats'], queryFn: () => api.get<CampStats>('/game/camp/stats'), enabled: !!user });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => setHydrated(true), []);
@@ -76,7 +73,7 @@ export default function CampPage() {
     <main
       className="relative h-full w-full overflow-hidden bg-[#080b08]"
     >
-      <div className="absolute -inset-x-1 -top-3 bottom-0 bg-cover bg-center" style={{ backgroundImage: `url('${camp.image}')` }} />
+      <div className="camp-scenery absolute inset-x-0 bg-cover bg-center" style={{ backgroundImage: `url('${camp.image}')` }} />
       <audio ref={audioRef} src="/assets/camp/camp-music.mp3" loop autoPlay muted={muted} />
 
       <div className="pointer-events-none absolute inset-0 bg-black/10" />
@@ -86,13 +83,6 @@ export default function CampPage() {
       <QuestsShopLauncher />
       <MedalsChestButton />
       <button onClick={() => setFlagStudioOpen(true)} className="hud-panel absolute right-3 top-[calc(env(safe-area-inset-top,0px)+158px)] z-20 rounded-xl p-2.5 text-brass shadow-lg" aria-label="Нарисовать флаг"><Flag size={20} /></button>
-      <div className="absolute left-1/2 top-[calc(env(safe-area-inset-top,0px)+126px)] z-10 -translate-x-1/2 rounded-full border border-brass/40 bg-black/45 px-4 py-1 text-xs text-parchment shadow-lg">{camp.name}</div>
-      {campStats && <div className="absolute inset-x-4 bottom-[calc(7.2rem+env(safe-area-inset-bottom,0px))] z-10 rounded-2xl border border-brass/40 bg-black/60 px-4 py-2 text-center text-[10px] text-parchment shadow-lg backdrop-blur">
-        <p className="font-display text-xs text-brass">Доска путешественника</p>
-        <p className="mt-1">Горы {campStats.mountains} · Города {campStats.cities} · Озёра {campStats.lakes} · Исторические места {campStats.historic}</p>
-        <p className="mt-1 text-parchment/70">Исследовано в Челябинской области: {campStats.percent}% · {campStats.visited}/{campStats.total}</p>
-      </div>}
-
       <button
         onClick={toggleSound}
         aria-label={muted ? 'Включить музыку' : 'Выключить музыку'}

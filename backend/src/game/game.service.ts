@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { resolveLevel } from '../progression/progression.service';
+import { completedExpeditionSteps, expeditionMonth, EXPEDITION_STAGES, selectMonthlyPoints } from './monthly-expedition';
 import { getUpgradeSettings } from '../common/game-upgrades';
 
 const DAILY_REWARDS: Array<{ coins?: number; crystals?: number }> = [
@@ -38,15 +39,15 @@ export class GameService {
 
   async campStats(userId: string) {
     const [total, visits] = await Promise.all([
-      this.prisma.poi.count({ where: { status: 'active', visibility: 'public', regionCode: 'RU-CHE' } }),
-      this.prisma.visit.findMany({ where: { userId, poi: { status: 'active', regionCode: 'RU-CHE' } }, select: { poi: { select: { category: { select: { code: true } } } } } }),
+      this.prisma.poi.count({ where: { status: 'active', visibility: 'public', regionCode: 'RU-CHE', title: { not: 'Открыть Челябинскую область' } } }),
+      this.prisma.visit.findMany({ where: { userId, poi: { status: 'active', visibility: 'public', regionCode: 'RU-CHE', title: { not: 'Открыть Челябинскую область' } } }, select: { poi: { select: { category: { select: { code: true } } } } } }),
     ]);
     const codes = visits.map((visit) => visit.poi.category.code);
     const cities = codes.filter((code) => ['city', 'township', 'village'].includes(code)).length;
     const mountains = codes.filter((code) => code === 'mountain').length;
     const lakes = codes.filter((code) => code === 'lake').length;
     const historic = codes.filter((code) => ['historic', 'monument'].includes(code)).length;
-    return { visited: visits.length, total, percent: total ? Math.min(100, Math.floor(visits.length / total * 100)) : 0, mountains, lakes, historic, cities };
+    return { visited: visits.length, total, percent: total ? Math.min(100, Math.round(visits.length / total * 1000) / 10) : 0, mountains, lakes, historic, cities };
   }
 
   async secretCompass(userId: string, lat: number, lng: number) {
@@ -103,66 +104,56 @@ export class GameService {
 
   async expedition(userId: string) {
     const now = new Date();
-    const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const monthKey = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, '0')}`;
-    let event = await this.prisma.expeditionEvent.findUnique({ where: { monthKey } });
-    const startsAt = now;
-    const endsAt = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 1));
-    if (!event) {
-      // Later months are generated from the shared public catalogue exactly once,
-      // so every player receives the same route and medal.
-      const eligible = await this.prisma.poi.findMany({ where: { status: 'active', visibility: 'public', regionCode: 'RU-CHE' }, select: { id: true, category: { select: { code: true } } }, take: 5000 });
-      if (eligible.length < 7) return { active: false, title: 'Экспедиция «Южный Урал»', message: 'Новый маршрут готовится. Загляните позже.' };
-      const stageCategories = ['city', 'lake', 'monument', 'park', 'mountain', 'historic', 'rare'];
-      const route: typeof eligible = [];
-      for (const code of stageCategories) {
-        const options = eligible.filter((point) => point.category.code === code && !route.some((selected) => selected.id === point.id));
-        const fallback = eligible.filter((point) => !route.some((selected) => selected.id === point.id));
-        const pool = options.length ? options : fallback;
-        route.push(pool[Math.floor(Math.random() * pool.length)]);
-      }
-      try {
-        event = await this.prisma.expeditionEvent.create({ data: { monthKey, title: 'Экспедиция «Южный Урал»', poiIds: route.map((p) => p.id), startsAt, endsAt } });
-      } catch {
-        event = await this.prisma.expeditionEvent.findUniqueOrThrow({ where: { monthKey } });
-      }
+    const { monthKey, startsAt, endsAt } = expeditionMonth(now);
+    const eligible = await this.prisma.poi.findMany({
+      where: { status: 'active', visibility: 'public', regionCode: 'RU-CHE', title: { not: 'Открыть Челябинскую область' }, category: { code: { in: ['city', 'lake', 'mountain'] } } },
+      select: { id: true, category: { select: { code: true } } },
+    });
+    const route = selectMonthlyPoints(monthKey, eligible);
+    if (!route) return { active: false, title: 'Великое путешествие', message: 'Маршрут готовится: нужны как минимум 7 городов, 7 озёр и 7 гор.', eventId: null, readyToClaim: false, claimed: false };
+    let event = await this.prisma.expeditionEvent.upsert({
+      where: { monthKey }, update: {},
+      create: { monthKey, title: 'Великое путешествие', poiIds: route, startsAt, endsAt },
+    });
+    let ids = Array.isArray(event.poiIds) ? event.poiIds.filter((id): id is string => typeof id === 'string') : [];
+    const categories = new Map(eligible.map((point) => [point.id, point.category.code]));
+    const valid = ids.length === 21 && new Set(ids).size === 21 && ids.every((id, index) => categories.get(id) === EXPEDITION_STAGES[Math.floor(index / 7)].category);
+    if (!valid || event.endsAt.getTime() !== endsAt.getTime() || event.startsAt.getTime() !== startsAt.getTime()) {
+      // Upgrade the old 3/7-point route in place; keep old claims to prevent paying twice.
+      await this.prisma.expeditionEvent.updateMany({ where: { id: event.id, poiIds: { equals: event.poiIds === null ? Prisma.JsonNull : event.poiIds as Prisma.InputJsonValue } }, data: { poiIds: valid ? ids : route, startsAt, endsAt, title: 'Великое путешествие' } });
+      event = await this.prisma.expeditionEvent.findUniqueOrThrow({ where: { id: event.id } });
+      ids = event.poiIds as string[];
     }
-    const ids = event.poiIds as string[];
-    const [points, stageIndex, claim] = await Promise.all([
+    const [points, visits, claim] = await Promise.all([
       this.prisma.poi.findMany({ where: { id: { in: ids } }, include: { category: true } }),
-      this.prisma.$transaction(async (tx) => {
-        const progress = await tx.expeditionProgress.upsert({
-          where: { eventId_userId: { eventId: event.id, userId } },
-          update: {},
-          create: { eventId: event.id, userId, stageIndex: 0 },
-          select: { stageIndex: true },
-        });
-        const priorVisits = await tx.visit.findMany({ where: { userId, poiId: { in: ids } }, select: { poiId: true } });
-        const visitedPoiIds = new Set(priorVisits.map((visit) => visit.poiId));
-        let nextStage = progress.stageIndex;
-        while (nextStage < ids.length && visitedPoiIds.has(ids[nextStage])) nextStage++;
-        if (nextStage === progress.stageIndex) return progress.stageIndex;
-
-        const advanced = await tx.expeditionProgress.updateMany({
-          where: { eventId: event.id, userId, stageIndex: progress.stageIndex },
-          data: { stageIndex: nextStage },
-        });
-        if (advanced.count === 1) return nextStage;
-        const latest = await tx.expeditionProgress.findUniqueOrThrow({ where: { eventId_userId: { eventId: event.id, userId } }, select: { stageIndex: true } });
-        return latest.stageIndex;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }),
+      this.prisma.visit.findMany({ where: { userId, poiId: { in: ids } }, select: { poiId: true } }),
       this.prisma.expeditionClaim.findUnique({ where: { eventId_userId: { eventId: event.id, userId } } }),
     ]);
-    return { active: now >= event.startsAt && now < event.endsAt, title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, stageIndex, points: ids.map((id, index) => ({ ...points.find((p) => p.id === id), completed: index < stageIndex, locked: index > stageIndex })).filter((p) => p.id), readyToClaim: ids.length > 0 && stageIndex >= ids.length, claimed: !!claim, medal: claim?.medalName ?? null };
+    const stageIndex = completedExpeditionSteps(ids, new Set(visits.map((visit) => visit.poiId)));
+    const stages = EXPEDITION_STAGES.map((stage, index) => {
+      const completed = Math.max(0, Math.min(7, stageIndex - index * 7));
+      const locked = stageIndex < index * 7;
+      const currentId = !locked && completed < 7 ? ids[index * 7 + completed] : null;
+      return { ...stage, completed, locked, point: currentId ? points.find((point) => point.id === currentId) ?? null : null };
+    });
+    return { active: now >= event.startsAt && now < event.endsAt, eventId: event.id, title: 'Великое путешествие', startsAt, endsAt, stageIndex, stages,
+      points: ids.map((id, index) => ({ ...points.find((point) => point.id === id), completed: index < stageIndex, locked: index > stageIndex })),
+      readyToClaim: stageIndex === 21, claimed: !!claim, medal: claim?.medalName ?? null };
   }
 
   async claimExpedition(userId: string) {
     const current = await this.expedition(userId);
-    if (!current.active || !current.readyToClaim || current.claimed) throw new BadRequestException({ code: 'EXPEDITION_NOT_COMPLETE', message: 'Сначала посетите все точки маршрута.' });
-    const monthKey = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
-    const event = await this.prisma.expeditionEvent.findUniqueOrThrow({ where: { monthKey } });
-    const medalName = `Экспедиция «Южный Урал» · ${monthKey}`;
+    if (!current.active || !current.eventId || !current.readyToClaim || current.claimed) throw new BadRequestException('Сначала пройдите 7 городов, 7 озёр и 7 гор.');
     return this.prisma.$transaction(async (tx) => {
+      const event = await tx.expeditionEvent.findUniqueOrThrow({ where: { id: current.eventId! } });
+      const now = new Date();
+      if (now < event.startsAt || now >= event.endsAt) throw new BadRequestException('Этот месяц завершён. Откройте новое путешествие.');
+      const ids = event.poiIds as string[];
+      const visits = await tx.visit.count({ where: { userId, poiId: { in: ids } } });
+      if (ids.length !== 21 || new Set(ids).size !== 21 || visits !== 21) throw new BadRequestException('Посетите все 21 место маршрута.');
+      const previous = await tx.expeditionClaim.findUnique({ where: { eventId_userId: { eventId: event.id, userId } } });
+      if (previous) throw new BadRequestException('Награда уже получена.');
+      const medalName = `Экспедиция «Южный Урал» · ${event.monthKey}`;
       const claim = await tx.expeditionClaim.create({ data: { eventId: event.id, userId, medalName } });
       const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: 50000 }, crystalsBalance: { increment: 50 } } });
       await tx.transaction.createMany({ data: [

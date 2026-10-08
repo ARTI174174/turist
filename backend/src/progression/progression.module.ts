@@ -1,4 +1,5 @@
-import { Controller, Get, Module, UseGuards } from '@nestjs/common';
+import { Controller, Get, Module, Param, Post, UseGuards } from '@nestjs/common';
+import { CategoryQuestsService } from './category-quests.service';
 import { ApiTags } from '@nestjs/swagger';
 import { ProgressionService } from './progression.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -20,7 +21,13 @@ class ProgressionController {
 @Controller('quests')
 @UseGuards(JwtAuthGuard)
 class QuestsController {
-  constructor(private progressionService: ProgressionService) {}
+  constructor(private progressionService: ProgressionService, private categoryQuests: CategoryQuestsService) {}
+
+  @Get('categories')
+  categories(@CurrentUser() user: CurrentUserPayload) { return this.categoryQuests.list(user.userId); }
+
+  @Post('categories/:code/claim')
+  claim(@CurrentUser() user: CurrentUserPayload, @Param('code') code: string) { return this.categoryQuests.claim(user.userId, code); }
 
   // Вехи «Посетить N мест» (SRS: экран «Задания»)
   @Get('milestones')
@@ -30,7 +37,7 @@ class QuestsController {
 }
 
 @Module({
-  providers: [ProgressionService],
+  providers: [ProgressionService, CategoryQuestsService],
   controllers: [ProgressionController, QuestsController],
   exports: [ProgressionService],
 })

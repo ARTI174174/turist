@@ -140,6 +140,9 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         // Точка исчезает с карты сразу — сервер больше не отдаёт уже открытые этим игроком места
         queryClient.invalidateQueries({ queryKey: ['poi', 'list'] });
         queryClient.invalidateQueries({ queryKey: ['quests', 'milestones'] });
+        queryClient.invalidateQueries({ queryKey: ['quests', 'categories'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'camp-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['passport'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'expedition'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'leaderboard'] });

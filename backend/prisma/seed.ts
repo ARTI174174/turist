@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 // Полный набор категорий — цвета соответствуют комментариям в poi-data.ts
 const CATEGORIES = [
+  { code: 'photo', title: 'Фототочка', colorHex: '#E67E22', iconAsset: '/assets/poi-markers/3.png' },
   { code: 'city', title: 'Город', colorHex: '#FBC02D', iconAsset: '/assets/poi-markers/1.png' },
   { code: 'township', title: 'Посёлок', colorHex: '#4CAF50', iconAsset: '/assets/poi-markers/11.png' },
   { code: 'trail', title: 'Пешая тропа / маршрутная точка', colorHex: '#558B2F', iconAsset: '/assets/poi-markers/10.png' },
@@ -24,8 +25,8 @@ const CATEGORIES = [
   { code: 'abandoned', title: 'Заброшенный объект', colorHex: '#455A64', iconAsset: '/assets/poi-markers/3.png' },
 ];
 
-const CATEGORY_REWARDS: Record<string, number> = { city: 100, township: 100, trail: 400, lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
-const CATEGORY_MARKERS: Record<string, number> = { city: 1, township: 11, trail: 10, lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
+const CATEGORY_REWARDS: Record<string, number> = { photo: 300, city: 100, township: 100, trail: 400, lake: 300, mountain: 1000, river: 400, spring: 300, cave: 500, rare: 700, museum: 300, historic: 300, monument: 300, park: 200, secret: 0, waterfall: 400, village: 100, abandoned: 500 };
+const CATEGORY_MARKERS: Record<string, number> = { photo: 3, city: 1, township: 11, trail: 10, lake: 12, mountain: 2, river: 10, spring: 7, cave: 5, rare: 13, museum: 14, historic: 14, monument: 8, park: 4, secret: 6, waterfall: 10, village: 11, abandoned: 3 };
 const UPGRADE_SETTINGS = [
   ...[500, 1000, 2000, 5000, 10000].map((effectValue, level) => ({ kind: 'glasses', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),
   ...[0, 50, 100, 150, 200].map((effectValue, level) => ({ kind: 'gloves', level, effectValue, priceCoins: [0, 10000, 20000, 50000, 100000][level] })),

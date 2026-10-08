@@ -32,6 +32,7 @@
 //     requiresProof: false,     // фото/QR сейчас не проверяются сервисом посещений
 //   },
 //
+// photo — фототочка с фотоаппаратом (маркер 3), 300 опыта и 300 золота.
 // КОДЫ КАТЕГОРИЙ (влияют на цвет маркера на карте):
 //   mountain  — гора/хребет/скалы     (коричневый)
 //   lake      — озеро/водохранилище/пруд (синий)
@@ -86,6 +87,152 @@ export interface PoiSeedData {
 }
 
 export const POI_CATALOG: PoiSeedData[] = [
+  // Координаты центра: https://ru.wikipedia.org/wiki/Увильды_(озеро)
+  // Описание: https://www.chel.travel/activities/kray-trekh-tysyach-ozer/
+  {
+    title: 'Озеро Увильды', categoryCode: 'lake', lat: 55.523889, lng: 60.495278,
+    geofenceRadiusM: 7000,
+    descriptionHistory: 'Увильды — крупное озеро Челябинской области с изрезанными берегами и многочисленными островами. Оно находится у восточных предгорий Урала и известно прозрачной водой.',
+    interestingFacts: ['Берега озера описывал писатель Дмитрий Мамин-Сибиряк.'],
+    bestSeason: ['summer', 'autumn'], difficulty: 'easy', baseXp: 50, baseCoins: 300, baseCrystals: 0, requiresProof: false,
+  },
+  // Координаты центра: https://ru.wikipedia.org/wiki/Смолино_(озеро)
+  // Описание: https://tourizm74.ru/turisticheskie-resursy/objects/?id=207
+  {
+    title: 'Озеро Смолино', categoryCode: 'lake', lat: 55.088333, lng: 61.438333,
+    geofenceRadiusM: 4000,
+    descriptionHistory: 'Смолино — природное озеро на юго-востоке Челябинска. Его берега примыкают к городским кварталам и служат местом прогулок у воды.',
+    interestingFacts: ['Вода в озере слабосолёная.', 'Озеро охраняется как памятник природы.'],
+    bestSeason: ['spring', 'summer', 'autumn'], difficulty: 'easy', baseXp: 50, baseCoins: 300, baseCrystals: 0, requiresProof: false,
+  },
+  // Фототочки: координаты и описания предоставлены владельцем игры.
+  {
+    "title": "Вид на водоём — Сатка",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 55.03448,
+    "lng": 59.024104,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на водоём в Сатке.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+  {
+    "title": "Смотровая площадка на Сим",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 54.993937,
+    "lng": 57.712373,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с панорамой города Сим.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+  {
+    "title": "Вид на Златоуст и водоём",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 55.17246,
+    "lng": 59.678186,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на Златоуст и водоём.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+  {
+    "title": "Вид на водоём — Миасс",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 55.050932,
+    "lng": 60.093779,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на водоём в Миассе.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+  {
+    "title": "Вид на парк «Притяжение» — Магнитогорск",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 53.384606,
+    "lng": 58.952378,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на парк «Притяжение» в Магнитогорске.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+  {
+    "title": "Смотровая площадка на Кизил",
+    "categoryCode": "photo",
+    "markerFixedSize": 0,
+    "lat": 52.71958,
+    "lng": 58.921285,
+    "geofenceRadiusM": 50,
+    "descriptionHistory": "Фототочка с видом на Кизил.",
+    "interestingFacts": [],
+    "bestSeason": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+    ],
+    "difficulty": "easy",
+    "baseXp": 300,
+    "baseCoins": 300,
+    "baseCrystals": 0,
+    "requiresProof": false
+},
+
 
   // Пешие маршруты и их ориентиры. Посещение точки не подтверждает весь трек.
   // Тропа из списка №1. Источники: https://taganay.org/sites/default/files/Таганай%20К%20Круглице.pdf
