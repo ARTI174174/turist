@@ -27,7 +27,7 @@ export function AchievementNotice() {
     <div className="pointer-events-none fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-[90] flex justify-center sm:bottom-6">
       <section key={notice.id} role="status" aria-live="polite" className="pointer-events-auto w-full max-w-sm rounded-2xl border border-brass/70 bg-panel/95 p-4 text-parchment shadow-2xl backdrop-blur-md">
         <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-brass/60 bg-moss/30 text-brass"><Sparkles size={21} /></span>
+          {notice.image ? <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl border bg-black/25 p-1 ${notice.rarity === 'legendary' ? 'animate-pulse border-amber shadow-[0_0_18px_#efb84c88]' : 'border-brass/50'}`}><img src={notice.image} alt="" className="h-full w-full object-contain" /></span> : <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-brass/60 bg-moss/30 text-brass"><Sparkles size={21} /></span>}
           <div className="min-w-0 flex-1">
             <p className="font-display text-base text-brass">Поздравляем!</p>
             <p className="mt-0.5 text-sm font-semibold text-parchment">{notice.title}</p>

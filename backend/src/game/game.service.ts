@@ -10,6 +10,11 @@ const DAILY_REWARDS: Array<{ coins?: number; crystals?: number }> = [
   { crystals: 10 }, { coins: 800 }, { crystals: 15 }, { coins: 900 }, { crystals: 20 },
 ];
 
+const CAMP_LEVEL_PRICES = [0, 1500, 4500, 9000, 15000, 24000];
+const HEARTH_INCOME = [0, 10, 20, 35, 50, 75];
+const HEARTH_CAPACITY = [0, 100, 250, 500, 1000, 2000];
+const TENT_BONUS = [0, 2, 4, 6, 8, 10];
+
 function yekaterinburgDateKey(date: Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Yekaterinburg', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
@@ -48,6 +53,83 @@ export class GameService {
     const lakes = codes.filter((code) => code === 'lake').length;
     const historic = codes.filter((code) => ['historic', 'monument'].includes(code)).length;
     return { visited: visits.length, total, percent: total ? Math.min(100, Math.round(visits.length / total * 1000) / 10) : 0, mountains, lakes, historic, cities };
+  }
+
+  private async accrueCampHearth(tx: Prisma.TransactionClient, state: { userId: string; hearthLevel: number; storedCoins: number; accruedAt: Date }, now = new Date()) {
+    const rate = HEARTH_INCOME[state.hearthLevel] ?? 0;
+    const cap = HEARTH_CAPACITY[state.hearthLevel] ?? 0;
+    const elapsedHours = Math.max(0, (now.getTime() - state.accruedAt.getTime()) / 3_600_000);
+    const storedCoins = Math.min(cap, state.storedCoins + Math.floor(elapsedHours * rate));
+    return tx.campProgress.update({ where: { userId: state.userId }, data: { storedCoins, accruedAt: now } });
+  }
+
+  async campData(userId: string) {
+    const now = new Date();
+    const progress = await this.prisma.$transaction(async (tx) => {
+      const state = await tx.campProgress.upsert({ where: { userId }, update: {}, create: { userId } });
+      return this.accrueCampHearth(tx, state, now);
+    });
+    const [inventory, discovered, collections] = await Promise.all([
+      this.prisma.userCollectible.findMany({ where: { userId, quantity: { gt: 0 } }, include: { item: true }, orderBy: { firstFoundAt: 'desc' } }),
+      this.prisma.userCollectible.findMany({ where: { userId }, select: { itemId: true } }),
+      this.prisma.collectibleCollection.findMany({ include: { items: { select: { itemId: true } }, claims: { where: { userId }, select: { claimedAt: true } } }, orderBy: { code: 'asc' } }),
+    ]);
+    const found = new Set(discovered.map(({ itemId }) => itemId));
+    return {
+      progress: { ...progress, tentBonusPercent: TENT_BONUS[progress.tentLevel] ?? 0, findChancePercent: ({ 0: 0, 1: 10, 2: 15, 3: 20, 4: 25, 5: 30 } as Record<number, number>)[progress.backpackLevel] ?? 0, hearthCoinsPerHour: HEARTH_INCOME[progress.hearthLevel] ?? 0, hearthCapacity: HEARTH_CAPACITY[progress.hearthLevel] ?? 0 },
+      inventory,
+      collections: collections.map((collection) => ({ code: collection.code, title: collection.title, description: collection.description, rewardCoins: collection.rewardCoins, found: collection.items.filter(({ itemId }) => found.has(itemId)).length, total: collection.items.length, claimed: collection.claims.length > 0 })),
+    };
+  }
+
+  async upgradeCamp(userId: string, kind: string) {
+    const field = kind === 'tent' ? 'tentLevel' : kind === 'hearth' ? 'hearthLevel' : kind === 'backpack' ? 'backpackLevel' : null;
+    if (!field) throw new BadRequestException('Выберите палатку, костёр или рюкзак.');
+    await this.prisma.$transaction(async (tx) => {
+      const state = await tx.campProgress.upsert({ where: { userId }, update: {}, create: { userId } });
+      const level = state[field];
+      const nextLevel = level + 1;
+      if (nextLevel > 5) throw new BadRequestException('Уже достигнут максимальный уровень.');
+      const price = CAMP_LEVEL_PRICES[nextLevel];
+      const accrued = await this.accrueCampHearth(tx, state);
+      const charged = await tx.wallet.updateMany({ where: { userId, coinsBalance: { gte: price } }, data: { coinsBalance: { decrement: price } } });
+      if (!charged.count) throw new BadRequestException({ code: 'INSUFFICIENT_FUNDS', message: `Для улучшения нужно ${price.toLocaleString('ru-RU')} золота.` });
+      const updated = await tx.campProgress.updateMany({ where: { userId, [field]: level }, data: { [field]: nextLevel, ...(field !== 'hearthLevel' ? { storedCoins: accrued.storedCoins, accruedAt: accrued.accruedAt } : {}) } });
+      if (!updated.count) throw new BadRequestException('Уровень уже изменился. Обновите страницу.');
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
+      await tx.transaction.create({ data: { walletId: wallet.id, type: 'spend', source: `camp_${kind}_upgrade`, amount: price, currency: 'coins', metadata: { kind, level: nextLevel } } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return this.campData(userId);
+  }
+
+  async collectCampCoins(userId: string) {
+    const collected = await this.prisma.$transaction(async (tx) => {
+      const state = await tx.campProgress.upsert({ where: { userId }, update: {}, create: { userId } });
+      const accrued = await this.accrueCampHearth(tx, state);
+      if (accrued.storedCoins <= 0) throw new BadRequestException('Костёр ещё не накопил золото.');
+      const amount = accrued.storedCoins;
+      const reset = await tx.campProgress.updateMany({ where: { userId, storedCoins: amount }, data: { storedCoins: 0, accruedAt: new Date() } });
+      if (reset.count !== 1) throw new BadRequestException('Золото уже было собрано. Обновите лагерь.');
+      const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: amount } } });
+      await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'camp_hearth_collect', amount, currency: 'coins', metadata: {} } });
+      return { amount, coinsBalance: wallet.coinsBalance };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return { ...collected, camp: await this.campData(userId) };
+  }
+
+  async sellCollectible(userId: string, itemKey: string, quantity = 1) {
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10000) throw new BadRequestException('Укажите корректное количество.');
+    const item = await this.prisma.collectibleItem.findUnique({ where: { key: itemKey } });
+    if (!item) throw new NotFoundException('Предмет не найден.');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const removed = await tx.userCollectible.updateMany({ where: { userId, itemId: item.id, quantity: { gte: quantity } }, data: { quantity: { decrement: quantity } } });
+      if (!removed.count) throw new BadRequestException('Недостаточно предметов для продажи.');
+      const amount = item.sellCoins * quantity;
+      const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: amount } } });
+      await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'collectible_sale', amount, currency: 'coins', metadata: { itemKey, quantity } } });
+      return { amount, coinsBalance: wallet.coinsBalance };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return { ...result, camp: await this.campData(userId) };
   }
 
   async secretCompass(userId: string, lat: number, lng: number) {

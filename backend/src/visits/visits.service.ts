@@ -6,6 +6,7 @@ import { ProgressionService } from '../progression/progression.service';
 import { EconomyService } from '../economy/economy.service';
 import { getUpgradeSettings } from '../common/game-upgrades';
 import { StartAttemptDto, HeartbeatDto, ProofDto } from './dto/attempt.dto';
+import { BACKPACK_FIND_CHANCE, RARITY_DROP_WEIGHTS } from '../../prisma/collectible-data';
 
 const REQUIRED_DWELL_SECONDS = 20;
 const DISTANCE_INDEPENDENT_TUTORIAL_POI = 'Открыть Челябинскую область';
@@ -201,12 +202,14 @@ export class VisitsService {
     const ownedBonuses = await this.prisma.inventoryItem.findMany({ where: { userId, shopItem: { name: { in: ['Фонарь путешественника', 'Палатка уральская'] } } }, select: { shopItem: { select: { name: true } } } });
     const hasFlashlight = ownedBonuses.some(({ shopItem }) => shopItem.name === 'Фонарь путешественника');
     const hasTent = ownedBonuses.some(({ shopItem }) => shopItem.name === 'Палатка уральская');
+    const campLevels = await this.prisma.campProgress.findUnique({ where: { userId }, select: { tentLevel: true, backpackLevel: true } });
     const localHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Yekaterinburg', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
     const nightBonus = hasFlashlight && localHour >= 0 && localHour < 4 ? 0.1 : 0;
     const natureBonus = hasTent && ['lake', 'mountain', 'river', 'spring', 'cave', 'rare', 'park', 'waterfall', 'trail'].includes(poi.category?.code ?? '') ? 0.05 : 0;
+    const campTentBonus = (campLevels?.tentLevel ?? 0) * 0.02;
     const xpAwarded = Math.round((isSecret ? 5000 : poi.baseXp) * (1 + nightBonus));
     const secretCoinsAwarded = isSecret ? Math.round(10000 * (1 + nightBonus)) : 0;
-    const coinsAwarded = isSecret ? 0 : Math.round(poi.baseCoins * (1 + nightBonus + natureBonus));
+    const coinsAwarded = isSecret ? 0 : Math.round(poi.baseCoins * (1 + nightBonus + natureBonus + campTentBonus));
     const crystalsAwarded = poi.visibility === 'secret' ? 0 : poi.baseCrystals;
 
     const activeEvent = await this.prisma.expeditionEvent.findFirst({ where: { startsAt: { lte: new Date() }, endsAt: { gt: new Date() } }, orderBy: { startsAt: 'desc' } });
@@ -256,7 +259,47 @@ export class VisitsService {
         const wallet = await tx.wallet.update({ where: { userId }, data: { crystalsBalance: { increment: crystalsAwarded } } });
         await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'visit', amount: crystalsAwarded, currency: 'crystals', metadata: { poiId: poi.id } } });
       }
-      return { visit: created, secretDiscovered: isSecret };
+      let find: { item: any; collectionCompleted?: { title: string; rewardCoins: number } } | null = null;
+      const backpackLevel = campLevels?.backpackLevel ?? 0;
+      const findChance = BACKPACK_FIND_CHANCE[backpackLevel] ?? 0;
+      const group = ['city', 'township', 'village', 'monument', 'historic', 'museum'].includes(poi.category.code) ? 'urban' : ['mountain', 'lake', 'photo', 'trail'].includes(poi.category.code) ? 'wild' : null;
+      if (!isSecret && findChance > 0 && group && Math.random() < findChance) {
+        const allowedRarities = group === 'urban' ? ['common', 'uncommon'] : Object.keys(RARITY_DROP_WEIGHTS);
+        const pool = await tx.collectibleItem.findMany({ where: { eligibleGroups: { has: group }, rarity: { in: allowedRarities } } });
+        if (pool.length) {
+          const rarityWeights = allowedRarities.map((rarity) => ({ rarity, weight: (RARITY_DROP_WEIGHTS as Record<string, number>)[rarity] ?? 0 })).filter(({ rarity }) => pool.some((candidate) => candidate.rarity === rarity));
+          const totalWeight = rarityWeights.reduce((sum, entry) => sum + entry.weight, 0);
+          let roll = Math.random() * totalWeight;
+          const rarity = rarityWeights.find(({ weight }) => (roll -= weight) < 0)?.rarity ?? rarityWeights[rarityWeights.length - 1]?.rarity;
+          const candidates = pool.filter((candidate) => candidate.rarity === rarity);
+          const item = candidates[Math.floor(Math.random() * candidates.length)];
+          if (item) {
+            await tx.userCollectible.upsert({
+              where: { userId_itemId: { userId, itemId: item.id } },
+              update: { quantity: { increment: 1 }, totalFound: { increment: 1 } },
+              create: { userId, itemId: item.id, quantity: 1, totalFound: 1 },
+            });
+            find = { item };
+            const collections = await tx.collectibleCollection.findMany({ where: { items: { some: { itemId: item.id } } }, include: { items: { select: { itemId: true } } } });
+            for (const collection of collections) {
+              const ownedIds = await tx.userCollectible.findMany({ where: { userId, itemId: { in: collection.items.map(({ itemId }) => itemId) } }, select: { itemId: true } });
+              if (ownedIds.length !== collection.items.length) continue;
+              const claimed = await tx.userCollectibleCollection.createMany({ data: [{ userId, collectionId: collection.id }], skipDuplicates: true });
+              if (!claimed.count) continue;
+              const wallet = await tx.wallet.update({ where: { userId }, data: { coinsBalance: { increment: collection.rewardCoins } } });
+              await tx.transaction.create({ data: { walletId: wallet.id, type: 'earn', source: 'collectible_collection', amount: collection.rewardCoins, currency: 'coins', metadata: { collection: collection.code } } });
+              const achievement = await tx.achievement.findUnique({ where: { code: `collection_${collection.code}` }, select: { id: true } });
+              if (achievement) await tx.userAchievement.upsert({
+                where: { userId_achievementId: { userId, achievementId: achievement.id } },
+                update: { currentTier: 1, progress: collection.items.length, unlockedAt: new Date() },
+                create: { userId, achievementId: achievement.id, currentTier: 1, progress: collection.items.length, unlockedAt: new Date() },
+              });
+              find.collectionCompleted = { title: collection.title, rewardCoins: collection.rewardCoins };
+            }
+          }
+        }
+      }
+      return { visit: created, secretDiscovered: isSecret, find };
     });
 
     const progress = await this.progression.addXp(userId, xpAwarded);
@@ -288,10 +331,11 @@ export class VisitsService {
       status: 'verified',
       visit: visitResult.visit,
       xpAwarded,
-      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? secretCoinsAwarded : 0) + rouletteReward.coins,
+      coinsAwarded: coinsAwarded + (visitResult.secretDiscovered ? secretCoinsAwarded : 0) + rouletteReward.coins + (visitResult.find?.collectionCompleted?.rewardCoins ?? 0),
       crystalsAwarded: crystalsAwarded + rouletteReward.crystals,
       secretDiscovery: visitResult.secretDiscovered ? { xp: xpAwarded, coins: secretCoinsAwarded } : undefined,
       rouletteReward,
+      find: visitResult.find,
       level: progress.level,
       newMilestones,
     };

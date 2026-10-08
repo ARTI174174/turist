@@ -142,6 +142,9 @@ model User {
   authoredRoutes      Route[] @relation("RouteAuthor")
   routeReviews        RouteReview[]
   poiFlags            PoiFlag[]
+  campProgress        CampProgress?
+  collectibleItems    UserCollectible[]
+  collectibleClaims   UserCollectibleCollection[]
 
   @@map("users")
 }
@@ -411,6 +414,84 @@ model InventoryItem {
   equipped   Boolean  @default(false)
 
   @@map("inventory_items")
+}
+
+model CampProgress {
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tentLevel     Int      @default(0)
+  hearthLevel   Int      @default(0)
+  backpackLevel Int      @default(0)
+  storedCoins   Int      @default(0)
+  accruedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("camp_progress")
+}
+
+model CollectibleItem {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  name           String
+  category       String
+  rarity         String
+  description    String
+  sellCoins      Int
+  assetUrl       String
+  eligibleGroups String[] @default([])
+  userItems      UserCollectible[]
+  collectionItems CollectibleCollectionItem[]
+
+  @@index([category, rarity])
+  @@map("collectible_items")
+}
+
+model UserCollectible {
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         CollectibleItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity     Int             @default(0)
+  totalFound   Int             @default(0)
+  firstFoundAt DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@id([userId, itemId])
+  @@index([userId, firstFoundAt])
+  @@map("user_collectibles")
+}
+
+model CollectibleCollection {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String
+  rewardCoins Int
+  items       CollectibleCollectionItem[]
+  claims      UserCollectibleCollection[]
+
+  @@map("collectible_collections")
+}
+
+model CollectibleCollectionItem {
+  collectionId String
+  collection   CollectibleCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         CollectibleItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, itemId])
+  @@map("collectible_collection_items")
+}
+
+model UserCollectibleCollection {
+  userId       String
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   CollectibleCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  claimedAt    DateTime              @default(now())
+
+  @@id([userId, collectionId])
+  @@map("user_collectible_collection_claims")
 }
 
 model Achievement {

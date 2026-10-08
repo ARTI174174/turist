@@ -120,10 +120,19 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
       if (res.status === 'verified') {
         setFlow('success');
         const milestoneNames = (res.newMilestones ?? []).map((milestone) => `веха «${milestone.count} мест»`);
-        announceAchievement({
+        const collectible = res.find;
+        const rewardCoins = Math.max(0, (res.coinsAwarded ?? 0) - (collectible?.collectionCompleted?.rewardCoins ?? 0));
+        const basicReward = `+${res.xpAwarded ?? 0} опыта · +${rewardCoins} золота${(res.crystalsAwarded ?? 0) > 0 ? ` · +${res.crystalsAwarded} 💎` : ''}`;
+        announceAchievement(collectible ? {
+          title: `Находка: ${collectible.item.name}`,
+          description: `${collectible.item.description}${collectible.collectionCompleted ? ` Коллекция «${collectible.collectionCompleted.title}» собрана!` : ''}`,
+          reward: `${basicReward}${collectible.collectionCompleted ? ` · +${collectible.collectionCompleted.rewardCoins.toLocaleString('ru-RU')} золота за коллекцию` : ''}`,
+          image: collectible.item.assetUrl,
+          rarity: collectible.item.rarity,
+        } : {
           title: milestoneNames.length ? 'Новая точка и награда!' : 'Точка исследована!',
           description: milestoneNames.length ? `${poi.title}. В заданиях доступна награда: ${milestoneNames.join(', ')}.` : `Ты открыл место «${poi.title}».`,
-          reward: `+${res.xpAwarded ?? 0} опыта · +${res.coinsAwarded ?? 0} золота${(res.crystalsAwarded ?? 0) > 0 ? ` · +${res.crystalsAwarded} 💎` : ''}`,
+          reward: basicReward,
         });
         if (user) {
           updateUser({
@@ -140,6 +149,7 @@ export function POICard({ poi, position, onClose, hideExplore = false, onShowOnM
         queryClient.invalidateQueries({ queryKey: ['quests', 'milestones'] });
         queryClient.invalidateQueries({ queryKey: ['quests', 'categories'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'camp-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['game', 'camp'] });
         queryClient.invalidateQueries({ queryKey: ['passport'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'expedition'] });
         queryClient.invalidateQueries({ queryKey: ['game', 'roulette'] });

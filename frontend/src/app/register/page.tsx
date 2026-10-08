@@ -102,10 +102,10 @@ export default function RegisterPage() {
             <p className="text-center text-xs text-parchment/65">Позже сменить его можно будет в магазине за 20 бриллиантов.</p>
             <div className="grid grid-cols-2 gap-3">
               {[
-                ['zyuratkul', 'Зюраткуль', '/assets/camp/locations/zyuratkul.png'],
-                ['nurgush', 'Нургуш', '/assets/camp/locations/nurgush.png'],
-                ['taganay', 'Таганай', '/assets/camp/locations/taganay.png'],
-                ['ural', 'Урал', '/assets/camp/locations/ural.jpg'],
+                ['zyuratkul', 'Зюраткуль', '/assets/camp/locations/zyuratkul.webp'],
+                ['nurgush', 'Нургуш', '/assets/camp/locations/nurgush.webp'],
+                ['taganay', 'Таганай', '/assets/camp/locations/taganay.webp'],
+                ['ural', 'Урал', '/assets/camp/locations/ural.webp'],
               ].map(([id, title, image]) => <button type="button" key={id} onClick={() => setCampThemeId(id)} className={`overflow-hidden rounded-2xl border-2 text-left ${campThemeId === id ? 'border-brass' : 'border-brass/25'}`}>
                 <img src={image} alt="" className="h-28 w-full object-cover" /><span className="block p-2 text-sm text-parchment">{title}</span>
               </button>)}

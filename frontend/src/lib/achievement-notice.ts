@@ -2,6 +2,8 @@ export interface AchievementNotice {
   title: string;
   description: string;
   reward?: string;
+  image?: string;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
 const EVENT_NAME = 'tourist:achievement-notice';

@@ -14,6 +14,10 @@ export class GameController {
   @Get('daily') daily(@CurrentUser() user: CurrentUserPayload) { return this.game.daily(user.userId); }
   @Get('welcome') welcome(@CurrentUser() user: CurrentUserPayload) { return this.game.welcomeStatus(user.userId); }
   @Get('camp/stats') campStats(@CurrentUser() user: CurrentUserPayload) { return this.game.campStats(user.userId); }
+  @Get('camp') campData(@CurrentUser() user: CurrentUserPayload) { return this.game.campData(user.userId); }
+  @Post('camp/upgrade') upgradeCamp(@CurrentUser() user: CurrentUserPayload, @Body('kind') kind: string) { return this.game.upgradeCamp(user.userId, kind); }
+  @Post('camp/collect') collectCamp(@CurrentUser() user: CurrentUserPayload) { return this.game.collectCampCoins(user.userId); }
+  @Post('collectibles/:key/sell') sellCollectible(@CurrentUser() user: CurrentUserPayload, @Param('key') key: string, @Body('quantity') quantity: number) { return this.game.sellCollectible(user.userId, key, quantity ?? 1); }
   @Get('secrets/compass') secretCompass(@CurrentUser() user: CurrentUserPayload, @Query('lat') lat: string, @Query('lng') lng: string) { return this.game.secretCompass(user.userId, Number(lat), Number(lng)); }
   @Post('welcome/complete') completeWelcome(@CurrentUser() user: CurrentUserPayload) { return this.game.completeWelcome(user.userId); }
   @Get('leaderboard') leaderboard() { return this.game.leaderboard(); }

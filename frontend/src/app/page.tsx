@@ -12,11 +12,10 @@ import { api } from '@/lib/api';
 import { FlagStudio } from '@/components/game/FlagStudio';
 import { Modal } from '@/components/ui/Modal';
 import { ApiError } from '@/lib/api';
+import { CampYard } from '@/components/game/CampYard';
 
 
-// Экран «Лагерь» — стартовый экран после запуска приложения: атмосферный
-// фон с костром + зацикленная фоновая музыка. Дальше сюда добавится
-// покупка палатки/украшений лагеря через Магазин.
+// Экран лагеря: пустая поляна и постепенно устанавливаемые игровые объекты.
 export default function CampPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -28,12 +27,12 @@ export default function CampPage() {
   const [savingCamp, setSavingCamp] = useState(false);
   const [campError, setCampError] = useState<string | null>(null);
   const camps: Record<string, { name: string; image: string }> = {
-    zyuratkul: { name: 'Зюраткуль', image: '/assets/camp/locations/zyuratkul.png' },
-    nurgush: { name: 'Нургуш', image: '/assets/camp/locations/nurgush.png' },
-    taganay: { name: 'Таганай', image: '/assets/camp/locations/taganay.png' },
-    ural: { name: 'Урал', image: '/assets/camp/locations/ural.jpg' },
+    zyuratkul: { name: 'Зюраткуль', image: '/assets/camp/locations/zyuratkul.webp' },
+    nurgush: { name: 'Нургуш', image: '/assets/camp/locations/nurgush.webp' },
+    taganay: { name: 'Таганай', image: '/assets/camp/locations/taganay.webp' },
+    ural: { name: 'Урал', image: '/assets/camp/locations/ural.webp' },
   };
-  const camp = camps[user?.campThemeId ?? ''] ?? { name: 'Лагерь', image: '/assets/camp/camp-bg.jpg' };
+  const camp = camps[user?.campThemeId ?? ''] ?? camps.zyuratkul;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => setHydrated(true), []);
@@ -77,6 +76,7 @@ export default function CampPage() {
       <audio ref={audioRef} src="/assets/camp/camp-music.mp3" loop autoPlay muted={muted} />
 
       <div className="pointer-events-none absolute inset-0 bg-black/10" />
+      <CampYard />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-b from-transparent via-[#0b100c]/75 to-[#080b08]" />
 
       <TopHud showNotifications={false} />
@@ -97,10 +97,10 @@ export default function CampPage() {
       {(!user.campThemeId || user.campThemeId === 'default') && <Modal title="Выбери первый лагерь" onClose={() => {}}>
         <p className="mb-3 text-center text-xs text-parchment/65">Это бесплатный выбор. Сменить лагерь позже можно будет в магазине за 20 бриллиантов.</p>
         <div className="grid grid-cols-2 gap-2">{[
-          ['zyuratkul', 'Зюраткуль', '/assets/camp/locations/zyuratkul.png'],
-          ['nurgush', 'Нургуш', '/assets/camp/locations/nurgush.png'],
-          ['taganay', 'Таганай', '/assets/camp/locations/taganay.png'],
-          ['ural', 'Урал', '/assets/camp/locations/ural.jpg'],
+          ['zyuratkul', 'Зюраткуль', '/assets/camp/locations/zyuratkul.webp'],
+          ['nurgush', 'Нургуш', '/assets/camp/locations/nurgush.webp'],
+          ['taganay', 'Таганай', '/assets/camp/locations/taganay.webp'],
+          ['ural', 'Урал', '/assets/camp/locations/ural.webp'],
         ].map(([id, name, image]) => <button key={id} onClick={() => setFirstCamp(id)} className={`overflow-hidden rounded-xl border-2 ${firstCamp === id ? 'border-brass' : 'border-brass/25'}`}><img src={image} alt="" className="h-24 w-full object-cover" /><span className="block p-2 text-xs text-parchment">{name}</span></button>)}</div>
         {campError && <p className="mt-2 text-center text-xs text-danger">{campError}</p>}
         <button disabled={!firstCamp || savingCamp} onClick={() => void chooseFirstCamp()} className="mt-3 w-full rounded-full bg-moss py-2.5 text-sm text-parchment disabled:opacity-40">{savingCamp ? 'Сохраняем…' : 'Установить лагерь'}</button>

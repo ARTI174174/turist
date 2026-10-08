@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { POI_CATALOG } from './poi-data';
+import { COLLECTIBLE_COLLECTIONS, COLLECTIBLE_ITEMS } from './collectible-data';
 
 const prisma = new PrismaClient();
 
@@ -139,9 +140,39 @@ async function main() {
     });
   }
 
+  for (const collectible of COLLECTIBLE_ITEMS) {
+    await prisma.collectibleItem.upsert({
+      where: { key: collectible.key },
+      update: collectible,
+      create: collectible,
+    });
+  }
+  for (const collection of COLLECTIBLE_COLLECTIONS) {
+    const { category, ...definition } = collection;
+    const saved = await prisma.collectibleCollection.upsert({
+      where: { code: definition.code },
+      update: { title: definition.title, description: definition.description, rewardCoins: definition.rewardCoins },
+      create: definition,
+    });
+    const members = COLLECTIBLE_ITEMS.filter((item) => item.category === category);
+    await prisma.achievement.upsert({
+      where: { code: `collection_${definition.code}` },
+      update: { title: `Коллекция «${definition.title}»`, description: definition.description },
+      create: { code: `collection_${definition.code}`, title: `Коллекция «${definition.title}»`, description: definition.description, category: 'collection', tiers: [{ tier: 1, required: members.length }], reward: { coins: definition.rewardCoins } },
+    });
+    for (const member of members) {
+      const savedItem = await prisma.collectibleItem.findUniqueOrThrow({ where: { key: member.key }, select: { id: true } });
+      await prisma.collectibleCollectionItem.upsert({
+        where: { collectionId_itemId: { collectionId: saved.id, itemId: savedItem.id } },
+        update: {},
+        create: { collectionId: saved.id, itemId: savedItem.id },
+      });
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.log(
-    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, ${deleted} устаревших удалено, предметы магазина загружены.`,
+    `Seed завершён: ${CATEGORIES.length} категорий, ${created} новых точек создано, ${updated} обновлено, ${deleted} устаревших удалено, ${COLLECTIBLE_ITEMS.length} предметов коллекции загружено.`,
   );
 }
 

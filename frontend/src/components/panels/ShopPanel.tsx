@@ -22,10 +22,10 @@ const SHOP_ITEM_ASSETS: Record<string, string> = {
   'Флаг путешественника': '/assets/shop/flag.png?v=2',
 };
 const CAMP_THEMES = [
-  { id: 'zyuratkul', name: 'Зюраткуль', image: 'zyuratkul.png' },
-  { id: 'nurgush', name: 'Нургуш', image: 'nurgush.png' },
-  { id: 'taganay', name: 'Таганай', image: 'taganay.png' },
-  { id: 'ural', name: 'Урал', image: 'ural.jpg' },
+    { id: 'zyuratkul', name: 'Зюраткуль', image: 'zyuratkul.webp' },
+    { id: 'nurgush', name: 'Нургуш', image: 'nurgush.webp' },
+    { id: 'taganay', name: 'Таганай', image: 'taganay.webp' },
+    { id: 'ural', name: 'Урал', image: 'ural.webp' },
 ] as const;
 
 type ShopSection = 'upgrades' | 'camp' | 'gear';

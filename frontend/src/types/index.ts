@@ -96,5 +96,6 @@ export interface VisitCompleteResult {
   crystalsAwarded?: number;
   level?: number;
   newMilestones?: { count: number; reward: number; crystalReward: number }[];
+  find?: { item: { key: string; name: string; rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'; description: string; assetUrl: string }; collectionCompleted?: { title: string; rewardCoins: number } } | null;
   message?: string;
 }
