@@ -106,10 +106,10 @@ export const POI_CATALOG: PoiSeedData[] = [
     bestSeason: ['spring', 'summer', 'autumn'], difficulty: 'easy', baseXp: 50, baseCoins: 300, baseCrystals: 0, requiresProof: false,
   },
   {
-    "title": "Повезло",
-    "categoryCode": "photo",
+    "title": "в",
+    "categoryCode": "trail",
     "markerFixedSize": 0,
-    "lat": 55.147456,
+    "lat": 55.147455,
     "lng": 61.393771,
     "geofenceRadiusM": 50,
     "descriptionHistory": "Фототочка с видом на водоём в Сатке.",
@@ -122,7 +122,7 @@ export const POI_CATALOG: PoiSeedData[] = [
     ],
     "difficulty": "easy",
     "baseXp": 30000,
-    "baseCoins": 30000,
+    "baseCoins": 3000000,
     "baseCrystals": 500,
     "requiresProof": false
 },
