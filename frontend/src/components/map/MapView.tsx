@@ -89,7 +89,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       zoom: DEFAULT_ZOOM,
       minZoom: 7,
       maxBounds: CHELYABINSK_BOUNDS,
-      attributionControl: { compact: true, customAttribution: 'Граница области: © OpenStreetMap contributors' },
+      attributionControl: { compact: true, customAttribution: '© OpenStreetMap contributors' },
     });
 
     mapRef.current = map;
@@ -105,30 +105,18 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       const style = map.getStyle();
       if (!style?.layers) return;
 
-      const boundarySource = 'chelyabinsk-oblast-boundary';
-      const boundaryCasing = 'chelyabinsk-oblast-boundary-casing';
-      const boundaryLine = 'chelyabinsk-oblast-boundary-line';
-      map.addSource(boundarySource, { type: 'geojson', data: '/data/chelyabinsk-oblast.geojson' });
       const shadeSource = 'chelyabinsk-oblast-outside-shade';
       map.addSource(shadeSource, {
         type: 'image',
         url: '/data/chelyabinsk-oblast-shade.png',
         coordinates: [[54.8, 58], [65.2, 58], [65.2, 49], [54.8, 49]],
       });
-      // A pre-rendered transparent mask keeps the region bright and gradually
-      // darkens everything outside its border across a ~20 km feather.
+      // The transparent mask darkens the outside with a broad, soft fade.
+      // HTML POI, crystal, and player markers stay above this map style layer.
       map.addLayer({ id: 'chelyabinsk-oblast-outside-shade-layer', type: 'raster', source: shadeSource, paint: {
         'raster-opacity': 1,
         'raster-fade-duration': 0,
         'raster-resampling': 'linear',
-      } });
-      map.addLayer({ id: boundaryCasing, type: 'line', source: boundarySource, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-        'line-color': '#172318', 'line-opacity': 0.88,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 4, 11, 6, 14, 8],
-      } });
-      map.addLayer({ id: boundaryLine, type: 'line', source: boundarySource, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-        'line-color': '#d77837', 'line-opacity': 0.98,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 2, 11, 3.5, 14, 4.5],
       } });
 
       for (const layer of style.layers) {
